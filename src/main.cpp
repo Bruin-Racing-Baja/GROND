@@ -1,6 +1,7 @@
 #include <Arduino.h>
 
 // Libraries
+#include <SPI.h>
 #include <ArduinoLog.h>
 #include <SD.h>
 
