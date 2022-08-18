@@ -1,23 +1,18 @@
 #include <Actuator.h>
+#include <Constants.h>
 
-Actuator::Actuator()
+Actuator::Actuator(Odrive odrive)
 {
     int huh = 0;
 }
 
 
+// Speed functions
+
 /**
- * Update speed of actuator
- * 
  * If the targeted actuator speed is different than the current speed set it to the updated speed
  * 
- * Returns the current speed of the actuator
- * 
- * 
- * 
- * 
- * 
- * 
+ * Returns the current set speed of the actuator
  */
 float Actuator::update_speed(float target_speed)
 {
@@ -31,6 +26,11 @@ float Actuator::update_speed(float target_speed)
     }
 }
 
+/**
+ * Instructs the ODrive object to set given speed
+ * 
+ * Returns the speed that is set
+ */
 float Actuator::set_speed(float set_speed)
 {
     // Odrive stuff here
@@ -38,6 +38,23 @@ float Actuator::set_speed(float set_speed)
     return current_speed;
 }
 
+// Homing functions
+/**
+ * Instructs the ODrive to home the encoder
+ * 
+ * Returns whether or not the operation succeeded or timed out
+ */
+bool Actuator::encoder_homing()
+{
+    return 1;
+}
+
+// Getter functions
+
+int Actuator::get_status()
+{
+    return status;
+}
 
 float Actuator::get_current_speed()
 {
