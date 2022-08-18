@@ -1,10 +1,8 @@
 #include <Actuator.h>
 #include <Constants.h>
 
-Actuator::Actuator(Odrive odrive)
-{
-    int huh = 0;
-}
+Actuator::Actuator()
+{}
 
 
 // Speed functions

@@ -6,7 +6,7 @@
 class Actuator
 {
     public:
-        Actuator(Odrive odrive);
+        Actuator();
         bool encoder_homing();
         bool actuator_homing();
         float update_speed(float target_speed);
@@ -22,6 +22,6 @@ class Actuator
         float current_speed;
         int axis_number = ACTUATOR_AXIS_NUMBER;
         float set_speed(float set_speed);
-}
+};
 
 #endif
