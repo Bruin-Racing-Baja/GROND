@@ -15,10 +15,15 @@ const int MODEL_NUMBER = model;
 #endif
 
 // Car-Indepenedent Bools
-const int LOG_LEVEL = LOG_LEVEL_NOTICE;
+const int LOG_LEVEL = 0;
 
 // Car-Independent Constants
 const int control_function_interval = 1e6;   // in microseconds
+const int ODRIVE_BAUD_RATE = 1;
+const int ACTUATOR_AXIS = 0;
+const int ODRIVE_RUN_STATE = 8;
+const int ODRIVE_ENCODER_CALIBRATION_STATE = 3;
+const int ODRIVE_DEFAULT_TIMEOUT = 1000; //ms
 
 
 #endif
