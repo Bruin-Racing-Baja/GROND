@@ -18,8 +18,8 @@ const int MODEL_NUMBER = model;
 const int LOG_LEVEL = 0;
 
 // Car-Independent Constants
-const int control_function_interval = 1e6;   // in microseconds
-const int ODRIVE_BAUD_RATE = 1;
+const int control_function_interval = 1e6;  //microseconds
+const int ODRIVE_BAUD_RATE = 115200;        //hz
 const int ACTUATOR_AXIS = 0;
 const int ODRIVE_RUN_STATE = 8;
 const int ODRIVE_ENCODER_CALIBRATION_STATE = 3;

@@ -21,7 +21,17 @@ Odrive::Odrive(HardwareSerial& serial) : odrive_serial(serial)
 int Odrive::init_connection()
 {
   odrive_serial.begin(ODRIVE_BAUD_RATE);
-  return 0;
+  long start = millis();
+  while (Odrive::get_bus_voltage() <= 1)
+  {
+    if (millis() - start > ODRIVE_DEFAULT_TIMEOUT)
+    {
+      status = 1;
+      return status;
+    }
+  }
+  status = 0;
+  return status;
 }
 
 bool Odrive::encoder_homing()
@@ -51,6 +61,14 @@ bool Odrive::set_state(int state, int axis)
   odrive_serial << "w axis" << axis << ".requested_state " << state << '\n';
   current_state = state;
   return true;
+}
+
+// Query data from Odrive
+
+float Odrive::get_bus_voltage()
+{
+  odrive_serial << "r vbus_voltage\n";
+  return Odrive::read_float();
 }
 
 // Odrive reading functions
