@@ -48,18 +48,17 @@ bool Odrive::init_connection()
  * Uses default odrive timeout
  * Returns true if succesful, false if timeout
  */
-bool Odrive::encoder_index_search()
+bool Odrive::encoder_index_search(int axis)
 {
   // Send desired state to encoder index search
-  current_state = ODRIVE_ENCODER_INDEX_SEARCH_STATE;
-  Odrive::set_state(current_state, ACTUATOR_AXIS);
+  Odrive::set_state(ODRIVE_ENCODER_INDEX_SEARCH_STATE, axis);
 
   // Wait until process is done by checking if can read access
   int timeout_counter = ODRIVE_DEFAULT_TIMEOUT;
   do
   {
     delay(100);
-    odrive_serial << "r axis" << ACTUATOR_AXIS << ".current_state\n";
+    odrive_serial << "r axis" << axis << ".current_state\n";
   } while (Odrive::read_int() != 1 && --timeout_counter > 0);
   
   if (timeout_counter > 0)
@@ -71,6 +70,39 @@ bool Odrive::encoder_index_search()
   // Timeout, report timeoue error
   status = 1;
   return false;
+}
+
+// General use functions
+
+/**
+ * Instructs given axis to go to given velocity
+ * Will update state to velocity control if it is not already
+ * Returns false if set_state fails
+ */
+bool Odrive::set_velocity(float velocity, int axis)
+{
+  if (current_state != 8)
+  {
+    if (!Odrive::set_state(ODRIVE_VELOCITY_CONTROL_STATE, axis))
+    {
+      // Unable to set correct state
+      return false;
+    }
+  }
+  odrive_serial << "v " << axis << " " << velocity << " "
+               << "0.0f"
+               << "\n";
+  ;
+  return true;
+}
+
+/**
+ * Instructs odrive to go to idle state
+ * Returns if setting state is successful
+ */
+bool Odrive::idle(int axis)
+{
+  return Odrive::set_state(ODRIVE_IDLE_STATE, axis);
 }
 
 // Functions to query data from Odrive
@@ -88,7 +120,7 @@ float Odrive::get_bus_voltage()
 
 /**
  * Given a state (use constants) and axis attempt to set odrive state
- * 
+ * Sets current_state if successful
  * Returns bool if successful
  */
 bool Odrive::set_state(int state, int axis)
