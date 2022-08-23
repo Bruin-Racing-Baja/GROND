@@ -2,14 +2,32 @@
 #include <Constants.h>
 #include <Odrive.h>
 
+// Startup functions
+
+/**
+ * Constructor assigns odrive pointer as class member
+ */
 Actuator::Actuator(Odrive* odrive_in)
 {
     odrive = odrive_in;
 }
 
-int Actuator::init()
+/**
+ * Initializes connection to physical odrive
+ * Returns bool if successful
+ */
+bool Actuator::init()
 {
     return odrive->init_connection();
+}
+
+/**
+ * Instructs Odrive to attempt encoder homing
+ * Returns a bool if successful
+ */
+bool Actuator::encoder_index_search()
+{
+    return odrive->encoder_index_search(ACTUATOR_AXIS);
 }
 
 // Speed functions
@@ -41,17 +59,6 @@ float Actuator::set_speed(float set_speed)
     odrive->set_velocity(set_speed, ACTUATOR_AXIS);
     current_speed = set_speed;
     return current_speed;
-}
-
-// Homing functions
-/**
- * Instructs the ODrive to home the encoder
- * 
- * Returns whether or not the operation succeeded or timed out
- */
-bool Actuator::encoder_homing()
-{
-    return 1;
 }
 
 // Getter functions
