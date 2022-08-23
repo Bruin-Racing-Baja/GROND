@@ -7,20 +7,22 @@ class Odrive
 {
     public:
         Odrive(HardwareSerial& serial);
-        int init_connection();
-        void set_velocity(float velocity, int axis);
-        bool encoder_homing();
+        bool init_connection();
+        bool set_velocity(float velocity, int axis);
+        bool encoder_index_search(int axis);
         float get_bus_voltage();
+        bool idle(int axis);
 
+        // Debugging / testing functions
+        int get_state(int axis);
+        int get_encoder_count(int axis);
+        ~Odrive();
 
     private:
         int status;
-        int current_state;
+        int axis_state[2];
 
         bool set_state(int state, int axis);
-
-        // Functions to query information from Odrive
-        
 
         // Helper functions to read Odrive messages
         String read_string();
