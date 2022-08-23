@@ -116,6 +116,16 @@ float Odrive::get_bus_voltage()
   return Odrive::read_float();
 }
 
+/**
+ * Query encoder count from odrive
+ * Returns float of the result
+ */
+int Odrive::get_encoder_count(int axis)
+{
+  odrive_serial << "r axis" << axis << ".encoder.shadow_count\n";
+  return Odrive::read_int();
+}
+
 // Private functions
 
 /**

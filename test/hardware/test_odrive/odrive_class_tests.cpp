@@ -48,12 +48,34 @@ void test_set_velocity_and_idle()
     // Turn on then off
     TEST_ASSERT_TRUE( odrive.set_velocity(test_actuator_velocity, test_axis) );
     TEST_ASSERT_TRUE( odrive.get_state(test_axis) == ODRIVE_VELOCITY_CONTROL_STATE );
+    delay(100);
     TEST_ASSERT_TRUE( odrive.set_velocity(0.0, test_axis) );
     TEST_ASSERT_TRUE( odrive.get_state(test_axis) == ODRIVE_VELOCITY_CONTROL_STATE );
     
     // Test idle
     TEST_ASSERT_TRUE( odrive.idle(test_axis) );
     TEST_ASSERT_TRUE( odrive.get_state(test_axis) == ODRIVE_IDLE_STATE );
+}
+
+void test_velocity_movement_and_encoder_count()
+{
+    // Setup
+    Odrive odrive(Serial1);
+    TEST_ASSERT_TRUE( odrive.encoder_index_search(test_axis) );
+    int starting_count = odrive.get_encoder_count(test_axis);
+
+    // Turn on then off
+    TEST_ASSERT_TRUE( odrive.set_velocity(test_actuator_velocity, test_axis) );
+    TEST_ASSERT_TRUE( odrive.get_state(test_axis) == ODRIVE_VELOCITY_CONTROL_STATE );
+    delay(100);
+    TEST_ASSERT_TRUE( odrive.set_velocity(0.0, test_axis) );
+    TEST_ASSERT_TRUE( odrive.get_state(test_axis) == ODRIVE_VELOCITY_CONTROL_STATE );
+
+    TEST_ASSERT_TRUE( starting_count != odrive.get_encoder_count(test_axis) );
+
+    TEST_ASSERT_TRUE( odrive.idle(test_axis) );
+    TEST_ASSERT_TRUE( odrive.get_state(test_axis) == ODRIVE_IDLE_STATE );
+
 }
 
 int main(int argc, char **argv)
