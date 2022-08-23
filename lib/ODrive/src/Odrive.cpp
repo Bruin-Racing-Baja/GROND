@@ -64,7 +64,7 @@ bool Odrive::encoder_index_search(int axis)
   if (timeout_counter > 0)
   {
     // Success, move to idle state
-    current_state = ODRIVE_IDLE_STATE;
+    axis_state[axis] = ODRIVE_IDLE_STATE;
     return true;
   }
   // Timeout, report timeoue error
@@ -81,7 +81,7 @@ bool Odrive::encoder_index_search(int axis)
  */
 bool Odrive::set_velocity(float velocity, int axis)
 {
-  if (current_state != 8)
+  if (axis_state[axis] != 8)
   {
     if (!Odrive::set_state(ODRIVE_VELOCITY_CONTROL_STATE, axis))
     {
@@ -125,9 +125,9 @@ float Odrive::get_bus_voltage()
  */
 bool Odrive::set_state(int state, int axis)
 {
-  if (state == current_state) return false;
+  if (state == axis_state[axis]) return false;
   odrive_serial << "w axis" << axis << ".requested_state " << state << '\n';
-  current_state = state;
+  axis_state[axis] = state;
   return true;
 }
 
@@ -175,4 +175,24 @@ float Odrive::read_float()
 int32_t Odrive::read_int()
 {
   return read_string().toInt();
+}
+
+// Debugging or testing functions
+
+/**
+ * Returns the current state for the given axis
+ * Returns int of state
+ */
+int Odrive::get_state(int axis)
+{
+  return axis_state[axis];
+}
+
+/**
+ * Destructor is relevant for tesing purposes, and not much else
+ * As such this isn't a very relevant or thorough destructor
+ */
+Odrive::~Odrive()
+{
+  odrive_serial.end();
 }

@@ -13,15 +13,15 @@ class Odrive
         float get_bus_voltage();
         bool idle(int axis);
 
+        // Debugging / testing functions
+        int get_state(int axis);
+        ~Odrive();
 
     private:
         int status;
-        int current_state;
+        int axis_state[2];
 
         bool set_state(int state, int axis);
-
-        // Functions to query information from Odrive
-        
 
         // Helper functions to read Odrive messages
         String read_string();
