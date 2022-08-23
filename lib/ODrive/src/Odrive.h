@@ -7,10 +7,11 @@ class Odrive
 {
     public:
         Odrive(HardwareSerial& serial);
-        int init_connection();
+        bool init_connection();
         void set_velocity(float velocity, int axis);
-        bool encoder_homing();
+        bool encoder_index_search();
         float get_bus_voltage();
+        bool idle();
 
 
     private:
