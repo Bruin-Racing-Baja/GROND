@@ -1,4 +1,5 @@
 #include <unity.h>
+#include <Actuator.h>
 #include <Odrive.h>
 
 void setUp(void)

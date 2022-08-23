@@ -2,11 +2,13 @@
 #define actuator_h
 
 #include <Constants.h>
+#include <Odrive.h>
 
 class Actuator
 {
     public:
-        Actuator();
+        Actuator(Odrive* odrive_in);
+        int init();
         bool encoder_homing();
         bool actuator_homing();
         float update_speed(float target_speed);
@@ -20,8 +22,10 @@ class Actuator
     private:
         int status;
         float current_speed;
-        int axis_number = ACTUATOR_AXIS_NUMBER;
+        int axis_number = ACTUATOR_AXIS;
         float set_speed(float set_speed);
+
+        Odrive* odrive;
 };
 
 #endif

@@ -1,9 +1,16 @@
 #include <Actuator.h>
 #include <Constants.h>
+#include <Odrive.h>
 
-Actuator::Actuator()
-{}
+Actuator::Actuator(Odrive* odrive_in)
+{
+    odrive = odrive_in;
+}
 
+int Actuator::init()
+{
+    return odrive->init_connection();
+}
 
 // Speed functions
 
@@ -31,7 +38,7 @@ float Actuator::update_speed(float target_speed)
  */
 float Actuator::set_speed(float set_speed)
 {
-    // Odrive stuff here
+    odrive->set_velocity(set_speed, ACTUATOR_AXIS);
     current_speed = set_speed;
     return current_speed;
 }
