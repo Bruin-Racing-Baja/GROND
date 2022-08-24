@@ -12,11 +12,14 @@ CAN_message_t msg;
 
 void setup() {
   // put your setup code here, to run once:
+  can1.begin();
   can1.setBaudRate(250000);
+  Serial.begin(9600);
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
+  while (!Serial){;;}
     if ( can1.read(msg) ) {
     Serial.print("CAN1 "); 
     Serial.print("MB: "); Serial.print(msg.mb);
