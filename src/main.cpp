@@ -1,20 +1,37 @@
 #include <Arduino.h>
 #include <FlexCAN_T4.h>
 
-
 /*Odrive configuration:
 odrv0.axis0.config.can.node_id = 0
 odrv0.axis1.config.can.node_id = 1
 odrv0.can.config.baud_rate = 250000
 */
 FlexCAN_T4<CAN3, RX_SIZE_256, TX_SIZE_16> can1;
+
 CAN_message_t msg;
+CAN_message_t msgout;
+
 
 void setup() {
   // put your setup code here, to run once:
   can1.begin();
   can1.setBaudRate(250000);
   Serial.begin(9600);
+
+  msgout.id = 0x017;
+  msgout.len = 8;
+  msgout.flags.extended = 0;
+  msgout.flags.remote   = 0;
+  msgout.flags.overrun  = 0;
+  msgout.flags.reserved = 0;
+  msgout.buf[0] = 0;
+  msgout.buf[1] = 0;
+  msgout.buf[2] = 0;
+  msgout.buf[3] = 0;
+  msgout.buf[4] = 0;
+  msgout.buf[5] = 0;
+  msgout.buf[6] = 0;
+  msgout.buf[7] = 0;
 }
 
 void loop() {
@@ -32,4 +49,6 @@ void loop() {
     }
     Serial.print("  TS: "); Serial.println(msg.timestamp);
   }
+
+  can1.write(msgout);
 }
