@@ -6,6 +6,7 @@
 #include <SD.h>
 
 // Classes
+#include <Actuator.h>
 #include <Constants.h>
 
 /*
@@ -40,7 +41,7 @@ Modes:
 #define HOME_ON_STARTUP 1 // Controls index search and home
 
 // Object Declarations
-
+Actuator actuator;
 IntervalTimer timer;
 File log_file;
 // File-Scope Variable Declarations
