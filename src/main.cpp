@@ -10,28 +10,13 @@ FlexCAN_T4<CAN3, RX_SIZE_256, TX_SIZE_16> can1;
 
 CAN_message_t msg;
 CAN_message_t msgout;
-
+static uint32_t t2 = 0;
 
 void setup() {
   // put your setup code here, to run once:
   can1.begin();
   can1.setBaudRate(250000);
   Serial.begin(9600);
-
-  msgout.id = 0x017;
-  msgout.len = 8;
-  msgout.flags.extended = 0;
-  msgout.flags.remote   = 0;
-  msgout.flags.overrun  = 0;
-  msgout.flags.reserved = 0;
-  msgout.buf[0] = 0;
-  msgout.buf[1] = 0;
-  msgout.buf[2] = 0;
-  msgout.buf[3] = 0;
-  msgout.buf[4] = 0;
-  msgout.buf[5] = 0;
-  msgout.buf[6] = 0;
-  msgout.buf[7] = 0;
 }
 
 void loop() {
@@ -48,7 +33,22 @@ void loop() {
       Serial.print(msg.buf[i]); Serial.print(" ");
     }
     Serial.print("  TS: "); Serial.println(msg.timestamp);
+    if (msg.id == 0x017){
+      Serial.print("Voltage: ");
+      float f;
+      memcpy (&f, msg.buf, 4);
+      Serial.println(f);
+    }
   }
 
-  can1.write(msgout);
+  if ( millis() - t2 > 100 ) {
+    t2 = millis();
+    static uint8_t id = 0x017;
+    CAN_message_t msgOut;
+    msgOut.id = id;
+    msgOut.len = 8;
+    msgOut.flags.remote = 1;
+    msgOut.flags.extended = 0;
+    can1.write(msgOut);
+  }
 }
