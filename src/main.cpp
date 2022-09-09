@@ -39,7 +39,7 @@ Modes:
 #define MODE 0
 
 // Startup Settings
-#define WAIT_SERIAL 1
+#define WAIT_SERIAL 0
 #define HOME_ON_STARTUP 1 // Controls index search and home
 
 // Object Declarations
@@ -75,6 +75,7 @@ void serial_debugger() {
 
 // Control Function ඞ
 void control_function() {
+  Serial.println("Start");
   u_int32_t start_us = micros();
   u_int32_t dt_us = start_us - last_exec_us;
 
@@ -91,11 +92,12 @@ void control_function() {
 
   float velocity_command = error * PROPORTIONAL_GAIN;
 
-  actuator.update_speed(velocity_command);
+  // actuator.update_speed(velocity_command);
   u_int32_t stop_us = micros();
   Log.notice("%d, %d, %F, %F, %d, %d, %d, %d" CR, start_us, stop_us, eg_rpm, wl_rpm, current_eg_count, current_wl_count, error, velocity_command);
   log_file.close();
   log_file = SD.open(log_name.c_str(), FILE_WRITE);
+  Serial.println("End");
 }
 
 void setup() {
@@ -110,8 +112,10 @@ void setup() {
   log_name = "log_" + String(log_file_number) + ".txt";
   Serial.println("Logging at: " + log_name);
   log_file = SD.open(log_name.c_str(), FILE_WRITE);
-  Log.begin(LOG_LEVEL, &log_file, false);
+  Log.begin(LOG_LEVEL_NOTICE, &log_file, false);
   Log.notice("Initialization Started - Model: %d " CR, MODEL_NUMBER);
+  log_file.close();
+  log_file = SD.open(log_name.c_str(), FILE_WRITE);
   
 
   // Create interrupts to count gear teeth
