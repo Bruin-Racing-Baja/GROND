@@ -4,10 +4,12 @@
 #include <SPI.h>
 #include <ArduinoLog.h>
 #include <SD.h>
+#include <HardwareSerial.h>
 
 // Classes
 #include <Actuator.h>
 #include <Constants.h>
+#include <Odrive.h>
 
 /*
 GROND GROND GROND GROND
@@ -41,18 +43,46 @@ Modes:
 #define HOME_ON_STARTUP 1 // Controls index search and home
 
 // Object Declarations
-Actuator actuator;
+Odrive odrive(Serial1);
+Actuator actuator(&odrive);
 IntervalTimer timer;
 File log_file;
 // File-Scope Variable Declarations
 
 // Geartooth counts
 volatile unsigned long eg_count = 0;
-volatile unsigned long gb_count = 0;
+volatile unsigned long wl_count = 0;
+
+// Control Function Variables
+u_int32_t last_exec_us;
+
+long int last_eg_count;
+long int last_wl_count;
+
+
+
 
 // Control Function ඞ
 void control_function() {
-  Serial.println(micros());
+  u_int32_t start_us = micros();
+  u_int32_t dt_us = start_us - last_exec_us;
+
+  noInterrupts();
+  int current_eg_count = eg_count;
+  int current_wl_count = wl_count;
+  interrupts();
+
+  // First, calculate rpms
+  float eg_rpm = ( current_eg_count - last_eg_count ) / dt_us * ROTATIONS_PER_ENGINE_COUNT * MICROSECONDS_PER_SECOND;
+  float wl_rpm = ( current_wl_count - last_wl_count ) / dt_us * ROTATIONS_PER_WHEEL_COUNT * MICROSECONDS_PER_SECOND;
+
+  float error = TARGET_RPM - eg_rpm;
+
+  float velocity_command = error * PROPORTIONAL_GAIN;
+
+  actuator.update_speed(velocity_command);
+
+  
 }
 
 void setup() {
@@ -72,10 +102,12 @@ void setup() {
   
 
   // Create interrupts to count gear teeth
-  attachInterrupt(EG_PIN, [](){++eg_count;}, RISING);
-  attachInterrupt(GB_PIN, [](){++gb_count;}, RISING);
+  attachInterrupt(EG_INTERRUPT_PIN, [](){++eg_count;}, RISING);
+  attachInterrupt(WL_INTERRUPT_PIN, [](){++wl_count;}, RISING);
 
-  timer.begin(control_function, control_function_interval);
+
+  last_exec_us = micros();
+  timer.begin(control_function, CONTROL_FUNCTION_INTERVAL);
   // And so it begins...
 }
 

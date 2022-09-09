@@ -81,7 +81,7 @@ bool Odrive::encoder_index_search(int axis)
  */
 bool Odrive::set_velocity(float velocity, int axis)
 {
-  if (axis_state[axis] != 8)
+  if (axis_state[axis] != ODRIVE_VELOCITY_CONTROL_STATE)
   {
     if (!Odrive::set_state(ODRIVE_VELOCITY_CONTROL_STATE, axis))
     {
