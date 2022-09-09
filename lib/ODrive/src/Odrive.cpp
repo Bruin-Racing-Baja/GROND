@@ -198,12 +198,3 @@ int Odrive::get_state(int axis)
 {
   return axis_state[axis];
 }
-
-/**
- * Destructor is relevant for tesing purposes, and not much else
- * As such this isn't a very relevant or thorough destructor
- */
-// Odrive::~Odrive()
-// {
-//   odrive_serial.end();
-// }

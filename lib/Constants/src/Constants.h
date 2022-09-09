@@ -11,8 +11,8 @@ const float PROPORTIONAL_GAIN = 0.1;
 #if model == 21
 const int MODEL_NUMBER = model;
 // Pins
-const int EG_INTERRUPT_PIN = 0;
-const int WL_INTERRUPT_PIN = 0;
+const int EG_INTERRUPT_PIN = 41;
+const int WL_INTERRUPT_PIN = 40;
 
 
 // Physical constants
