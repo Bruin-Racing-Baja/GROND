@@ -16,7 +16,6 @@ class Odrive
         // Debugging / testing functions
         int get_state(int axis);
         int get_encoder_count(int axis);
-        ~Odrive();
 
     private:
         int status;

@@ -31,6 +31,10 @@ void test_vbus_value()
     TEST_ASSERT_FLOAT_WITHIN(2.0, 24.0, bus_voltage);
 }
 
+/**
+ * NOTE: This will pass automatically if there is no actuator connected to the odrive
+ * Keep this in mind for evaluating performance
+ */
 void test_encoder_index_search()
 {
     Odrive odrive(Serial1);
@@ -44,7 +48,7 @@ void test_set_velocity_and_idle()
     // Setup
     Odrive odrive(Serial1);
     TEST_ASSERT_TRUE( odrive.encoder_index_search(test_axis) );
-
+    
     // Turn on then off
     TEST_ASSERT_TRUE( odrive.set_velocity(test_actuator_velocity, test_axis) );
     TEST_ASSERT_TRUE( odrive.get_state(test_axis) == ODRIVE_VELOCITY_CONTROL_STATE );
@@ -85,6 +89,8 @@ int main(int argc, char **argv)
     RUN_TEST(test_connection);
     RUN_TEST(test_vbus_value);
     RUN_TEST(test_encoder_index_search);
+    RUN_TEST(test_set_velocity_and_idle);
+    RUN_TEST(test_velocity_movement_and_encoder_count);
 
     UNITY_END();
 }

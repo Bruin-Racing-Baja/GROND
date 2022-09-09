@@ -54,12 +54,13 @@ bool Odrive::encoder_index_search(int axis)
   Odrive::set_state(ODRIVE_ENCODER_INDEX_SEARCH_STATE, axis);
 
   // Wait until process is done by checking if can read access
-  int timeout_counter = ODRIVE_DEFAULT_TIMEOUT;
+  int delay_ms = 100;
+  int timeout_counter = 10;
   do
   {
-    delay(100);
+    delay(delay_ms);
     odrive_serial << "r axis" << axis << ".current_state\n";
-  } while (Odrive::read_int() != 1 && --timeout_counter > 0);
+  } while (Odrive::read_int() != ODRIVE_IDLE_STATE && --timeout_counter > 0);
   
   if (timeout_counter > 0)
   {
@@ -202,7 +203,7 @@ int Odrive::get_state(int axis)
  * Destructor is relevant for tesing purposes, and not much else
  * As such this isn't a very relevant or thorough destructor
  */
-Odrive::~Odrive()
-{
-  odrive_serial.end();
-}
+// Odrive::~Odrive()
+// {
+//   odrive_serial.end();
+// }
