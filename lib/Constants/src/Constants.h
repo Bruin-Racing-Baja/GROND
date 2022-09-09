@@ -2,8 +2,8 @@
 #define constants_h
 
 // COMMONLY CHANGED PARAMETERS
-const int TARGET_RPM = 3400;
-const float PROPORTIONAL_GAIN = 0.1;
+const int TARGET_RPM = 2300;
+const float PROPORTIONAL_GAIN = 0.01;
 
 #define model 21
 
@@ -16,9 +16,9 @@ const int WL_INTERRUPT_PIN = 36;
 
 
 // Physical constants
-const float ROTATIONS_PER_ENGINE_COUNT = 1/88;
-const float ROTATIONS_PER_WHEEL_COUNT = 1/12;       // Actual rotation of wheel
-const float SECONDARY_ROTATIONS_PER_WHEEL_COUNT = 3/4;  //Rotation of secondary
+const float ROTATIONS_PER_ENGINE_COUNT = 1.0/88;
+const float ROTATIONS_PER_WHEEL_COUNT = 1.0/12;       // Actual rotation of wheel
+const float SECONDARY_ROTATIONS_PER_WHEEL_COUNT = 3.0/4;  //Rotation of secondary
 
 #elif model == 22
 #define dancing 13

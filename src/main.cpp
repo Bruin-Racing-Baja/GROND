@@ -57,8 +57,8 @@ volatile unsigned long wl_count = 0;
 // Control Function Variables
 u_int32_t last_exec_us;
 
-long int last_eg_count;
-long int last_wl_count;
+long int last_eg_count = 0;
+long int last_wl_count = 0;
 
 
 void serial_debugger() {
@@ -78,6 +78,7 @@ void control_function() {
   Serial.println("Start");
   u_int32_t start_us = micros();
   u_int32_t dt_us = start_us - last_exec_us;
+  
 
   noInterrupts();
   long current_eg_count = eg_count;
@@ -85,8 +86,12 @@ void control_function() {
   interrupts();
 
   // First, calculate rpms
-  float eg_rpm = ( current_eg_count - last_eg_count ) * ROTATIONS_PER_ENGINE_COUNT / dt_us * MICROSECONDS_PER_SECOND;
-  float wl_rpm = ( current_wl_count - last_wl_count ) * ROTATIONS_PER_WHEEL_COUNT / dt_us * MICROSECONDS_PER_SECOND;
+  float eg_rpm = ( current_eg_count - last_eg_count ) * ROTATIONS_PER_ENGINE_COUNT / dt_us * MICROSECONDS_PER_SECOND * 60.0;
+  float wl_rpm = ( current_wl_count - last_wl_count ) * ROTATIONS_PER_WHEEL_COUNT / dt_us * MICROSECONDS_PER_SECOND * 60.0;
+
+  last_eg_count = current_eg_count;
+  last_wl_count = current_wl_count;
+  last_exec_us = start_us;
 
   float error = TARGET_RPM - eg_rpm;
 
@@ -94,7 +99,7 @@ void control_function() {
 
   // actuator.update_speed(velocity_command);
   u_int32_t stop_us = micros();
-  Log.notice("%d, %d, %F, %F, %d, %d, %d, %d" CR, start_us, stop_us, eg_rpm, wl_rpm, current_eg_count, current_wl_count, error, velocity_command);
+  Log.notice("%d, %d, %F, %F, %d, %d, %F, %F" CR, start_us, stop_us, eg_rpm, wl_rpm, current_eg_count, current_wl_count, error, velocity_command);
   log_file.close();
   log_file = SD.open(log_name.c_str(), FILE_WRITE);
   Serial.println("End");
@@ -104,6 +109,7 @@ void setup() {
   if (WAIT_SERIAL) { while(!Serial) { } }
 
   // Log file determination and initialization
+  SD.begin(BUILTIN_SDCARD);
   int log_file_number = 0;
   while (SD.exists(("log_" + String(log_file_number) + ".txt").c_str()))
   {
