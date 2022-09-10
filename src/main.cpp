@@ -36,11 +36,11 @@ Modes:
 1 - Debug Mode [Teensy Power]
 2 - Debug Mode [Main Power]
 */
-#define MODE 0
+static constexpr int kMode = 1;
 
 // Startup Settings
-#define WAIT_SERIAL 0
-#define HOME_ON_STARTUP 1 // Controls index search and home
+static constexpr int kWaitSerial = 1;
+static constexpr int kHomeOnStartup = 1; // Controls index search and home
 
 // Object Declarations
 Odrive odrive(Serial1);
@@ -60,17 +60,13 @@ u_int32_t last_exec_us;
 long int last_eg_count = 0;
 long int last_wl_count = 0;
 
-
+static constexpr int kSerialDebuggerIntervalUs = 100000;
 void serial_debugger() {
   noInterrupts();
   long current_eg_count = eg_count;
   long current_wl_count = wl_count;
   interrupts();
-  Serial.print(micros());
-  Serial.print(", ");
-  Serial.print(current_eg_count);
-  Serial.print(", ");
-  Serial.println(current_wl_count);
+  Serial.printf("ms: %d ec: %d wc: %d\n", millis(), current_eg_count, current_wl_count);
 }
 
 // Control Function ඞ
@@ -94,19 +90,35 @@ void control_function() {
   last_exec_us = start_us;
 
   float error = TARGET_RPM - eg_rpm;
-
   float velocity_command = error * PROPORTIONAL_GAIN;
 
-  // actuator.update_speed(velocity_command);
+  bool estop_in = digitalReadFast(ESTOP_IN_PIN);
+  bool estop_out = digitalReadFast(ESTOP_OUT_PIN);
+  // if (estop_in){
+  //   if (velocity_command < 0){
+  //     velocity_command = 0;
+  //   }
+  // }
+  // if (estop_out){
+  //   if (velocity_command > 0){
+  //     velocity_command = 0;
+  //   }
+  // }
+  digitalWrite(LED_1_PIN, !estop_in);
+  digitalWrite(LED_2_PIN, !estop_out);
+
+  actuator.update_speed(velocity_command);
+
   u_int32_t stop_us = micros();
-  Log.notice("%d, %d, %F, %F, %d, %d, %F, %F" CR, start_us, stop_us, eg_rpm, wl_rpm, current_eg_count, current_wl_count, error, velocity_command);
+  Log.notice("%d, %d, %F, %F, %d, %d, %F, %F, %d, %d" CR, start_us, stop_us, eg_rpm, wl_rpm, current_eg_count, current_wl_count, error, velocity_command, estop_in, estop_out);
   log_file.close();
   log_file = SD.open(log_name.c_str(), FILE_WRITE);
   Serial.println("End");
+  
 }
 
 void setup() {
-  if (WAIT_SERIAL) { while(!Serial) { } }
+  if (kWaitSerial) { while(!Serial) { } }
 
   // Log file determination and initialization
   SD.begin(BUILTIN_SDCARD);
@@ -123,15 +135,28 @@ void setup() {
   log_file.close();
   log_file = SD.open(log_name.c_str(), FILE_WRITE);
   
+  actuator.init();
+
+  Serial.print("Index: ");
+  actuator.encoder_index_search();
+  Serial.println("after index");
 
   // Create interrupts to count gear teeth
   attachInterrupt(EG_INTERRUPT_PIN, [](){++eg_count;}, RISING);
   attachInterrupt(WL_INTERRUPT_PIN, [](){++wl_count;}, RISING);
 
 
+  // Attach correct interrupt based on the desired mode
   last_exec_us = micros();
-  timer.begin(control_function, CONTROL_FUNCTION_INTERVAL);
-  // timer.begin(serial_debugger, 1e6);
+  switch(kMode) {
+    case 0:
+      timer.begin(control_function, CONTROL_FUNCTION_INTERVAL);
+      break;
+    case 1:
+      timer.begin(serial_debugger, kSerialDebuggerIntervalUs);   
+      break; 
+  }
+  
   // And so it begins...
 }
 

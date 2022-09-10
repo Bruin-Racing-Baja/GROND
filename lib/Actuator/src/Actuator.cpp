@@ -39,14 +39,7 @@ bool Actuator::encoder_index_search()
  */
 float Actuator::update_speed(float target_speed)
 {
-    if (target_speed != current_speed)
-    {
         return Actuator::set_speed(target_speed);
-    }
-    else
-    {
-        return current_speed;
-    }
 }
 
 /**

@@ -2,7 +2,7 @@
 #define constants_h
 
 // COMMONLY CHANGED PARAMETERS
-const int TARGET_RPM = 2300;
+const int TARGET_RPM = 1800;
 const float PROPORTIONAL_GAIN = 0.01;
 
 #define model 21
@@ -13,6 +13,10 @@ const int MODEL_NUMBER = model;
 // Pins
 const int EG_INTERRUPT_PIN = 37;
 const int WL_INTERRUPT_PIN = 36;
+const int ESTOP_IN_PIN = 33;
+const int ESTOP_OUT_PIN = 32;
+const int LED_1_PIN = 28;
+const int LED_2_PIN = 29;
 
 
 // Physical constants
@@ -25,7 +29,7 @@ const float SECONDARY_ROTATIONS_PER_WHEEL_COUNT = 3.0/4;  //Rotation of secondar
 #endif
 
 // Car-Indepenedent Constants
-const int LOG_LEVEL = 0;
+const int LOG_LEVEL = 4;
 
 // Car-Independent Constants
 const int CONTROL_FUNCTION_INTERVAL = 1e4;  //microseconds

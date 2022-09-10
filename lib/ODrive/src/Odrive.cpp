@@ -1,3 +1,5 @@
+#include <Arduino.h>
+
 #include <Constants.h>
 #include <Odrive.h>
 
@@ -56,10 +58,12 @@ bool Odrive::encoder_index_search(int axis)
   // Wait until process is done by checking if can read access
   int delay_ms = 100;
   int timeout_counter = 10;
+  Serial.println("Starting index search loop");
   do
   {
     delay(delay_ms);
     odrive_serial << "r axis" << axis << ".current_state\n";
+    Serial.println(timeout_counter);
   } while (Odrive::read_int() != ODRIVE_IDLE_STATE && --timeout_counter > 0);
   
   if (timeout_counter > 0)
