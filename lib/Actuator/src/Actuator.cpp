@@ -27,7 +27,7 @@ bool Actuator::init()
  */
 bool Actuator::encoder_index_search()
 {
-    return odrive->encoder_index_search(ACTUATOR_AXIS);
+    return odrive->encoder_index_search(car_const::ACTUATOR_AXIS);
 }
 
 // Speed functions
@@ -49,7 +49,7 @@ float Actuator::update_speed(float target_speed)
  */
 float Actuator::set_speed(float set_speed)
 {
-    odrive->set_velocity(set_speed, ACTUATOR_AXIS);
+    odrive->set_velocity(set_speed, car_const::ACTUATOR_AXIS);
     current_speed = set_speed;
     return current_speed;
 }

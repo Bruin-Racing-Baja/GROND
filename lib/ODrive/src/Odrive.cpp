@@ -31,7 +31,7 @@ Odrive::Odrive(HardwareSerial& serial) : odrive_serial(serial)
  */
 bool Odrive::init_connection()
 {
-  odrive_serial.begin(ODRIVE_BAUD_RATE);
+  odrive_serial.begin(car_const::ODRIVE_BAUD_RATE);
   long start = millis();
   while (Odrive::get_bus_voltage() <= 1)
   {
@@ -53,7 +53,7 @@ bool Odrive::init_connection()
 bool Odrive::encoder_index_search(int axis)
 {
   // Send desired state to encoder index search
-  Odrive::set_state(ODRIVE_ENCODER_INDEX_SEARCH_STATE, axis);
+  Odrive::set_state(enums::ODRIVE_ENCODER_INDEX_SEARCH_STATE, axis);
 
   // Wait until process is done by checking if can read access
   int delay_ms = 100;
@@ -64,12 +64,12 @@ bool Odrive::encoder_index_search(int axis)
     delay(delay_ms);
     odrive_serial << "r axis" << axis << ".current_state\n";
     Serial.println(timeout_counter);
-  } while (Odrive::read_int() != ODRIVE_IDLE_STATE && --timeout_counter > 0);
+  } while (Odrive::read_int() != enums::ODRIVE_IDLE_STATE && --timeout_counter > 0);
   
   if (timeout_counter > 0)
   {
     // Success, move to idle state
-    axis_state[axis] = ODRIVE_IDLE_STATE;
+    axis_state[axis] = enums::ODRIVE_IDLE_STATE;
     return true;
   }
   // Timeout, report timeoue error
@@ -86,9 +86,9 @@ bool Odrive::encoder_index_search(int axis)
  */
 bool Odrive::set_velocity(float velocity, int axis)
 {
-  if (axis_state[axis] != ODRIVE_VELOCITY_CONTROL_STATE)
+  if (axis_state[axis] != enums::ODRIVE_VELOCITY_CONTROL_STATE)
   {
-    if (!Odrive::set_state(ODRIVE_VELOCITY_CONTROL_STATE, axis))
+    if (!Odrive::set_state(enums::ODRIVE_VELOCITY_CONTROL_STATE, axis))
     {
       // Unable to set correct state
       return false;
@@ -107,7 +107,7 @@ bool Odrive::set_velocity(float velocity, int axis)
  */
 bool Odrive::idle(int axis)
 {
-  return Odrive::set_state(ODRIVE_IDLE_STATE, axis);
+  return Odrive::set_state(enums::ODRIVE_IDLE_STATE, axis);
 }
 
 // Functions to query data from Odrive

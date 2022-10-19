@@ -22,7 +22,7 @@ class Actuator
     private:
         int status;
         float current_speed = 0.0;
-        int axis_number = ACTUATOR_AXIS;
+        int axis_number = car_const::ACTUATOR_AXIS;
         float set_speed(float set_speed);
 
         Odrive* odrive;

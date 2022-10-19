@@ -82,8 +82,8 @@ void control_function() {
   interrupts();
 
   // First, calculate rpms
-  float eg_rpm = ( current_eg_count - last_eg_count ) * ROTATIONS_PER_ENGINE_COUNT / dt_us * MICROSECONDS_PER_SECOND * 60.0;
-  float wl_rpm = ( current_wl_count - last_wl_count ) * ROTATIONS_PER_WHEEL_COUNT / dt_us * MICROSECONDS_PER_SECOND * 60.0;
+  float eg_rpm = ( current_eg_count - last_eg_count ) * physical_const::ROTATIONS_PER_ENGINE_COUNT / dt_us * MICROSECONDS_PER_SECOND * 60.0;
+  float wl_rpm = ( current_wl_count - last_wl_count ) * physical_const::ROTATIONS_PER_WHEEL_COUNT / dt_us * MICROSECONDS_PER_SECOND * 60.0;
 
   last_eg_count = current_eg_count;
   last_wl_count = current_wl_count;
@@ -92,8 +92,8 @@ void control_function() {
   float error = TARGET_RPM - eg_rpm;
   float velocity_command = error * PROPORTIONAL_GAIN;
 
-  bool estop_in = digitalReadFast(ESTOP_IN_PIN);
-  bool estop_out = digitalReadFast(ESTOP_OUT_PIN);
+  bool estop_in = digitalReadFast(pin::ESTOP_IN_PIN);
+  bool estop_out = digitalReadFast(pin::ESTOP_OUT_PIN);
   // if (estop_in){
   //   if (velocity_command < 0){
   //     velocity_command = 0;
@@ -104,8 +104,8 @@ void control_function() {
   //     velocity_command = 0;
   //   }
   // }
-  digitalWrite(LED_1_PIN, !estop_in);
-  digitalWrite(LED_2_PIN, !estop_out);
+  digitalWrite(pin::LED_1_PIN, !estop_in);
+  digitalWrite(pin::LED_2_PIN, !estop_out);
 
   actuator.update_speed(velocity_command);
 
@@ -142,15 +142,15 @@ void setup() {
   Serial.println("after index");
 
   // Create interrupts to count gear teeth
-  attachInterrupt(EG_INTERRUPT_PIN, [](){++eg_count;}, RISING);
-  attachInterrupt(WL_INTERRUPT_PIN, [](){++wl_count;}, RISING);
+  attachInterrupt(pin::EG_INTERRUPT_PIN, [](){++eg_count;}, RISING);
+  attachInterrupt(pin::WL_INTERRUPT_PIN, [](){++wl_count;}, RISING);
 
 
   // Attach correct interrupt based on the desired mode
   last_exec_us = micros();
   switch(kMode) {
     case 0:
-      timer.begin(control_function, CONTROL_FUNCTION_INTERVAL);
+      timer.begin(control_function, car_const::CONTROL_FUNCTION_INTERVAL);
       break;
     case 1:
       timer.begin(serial_debugger, kSerialDebuggerIntervalUs);   
