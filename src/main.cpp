@@ -1,10 +1,12 @@
 #include <Arduino.h>
 
 // Libraries
+// clang-format off
 #include <SPI.h>
+// clang-format on
 #include <ArduinoLog.h>
-#include <SD.h>
 #include <HardwareSerial.h>
+#include <SD.h>
 
 // Classes
 #include <Actuator.h>
@@ -40,7 +42,7 @@ static constexpr int kMode = 1;
 
 // Startup Settings
 static constexpr int kWaitSerial = 1;
-static constexpr int kHomeOnStartup = 1; // Controls index search and home
+static constexpr int kHomeOnStartup = 1;  // Controls index search and home
 
 // Object Declarations
 Odrive odrive(Serial1);
@@ -66,15 +68,14 @@ void serial_debugger() {
   long current_eg_count = eg_count;
   long current_wl_count = wl_count;
   interrupts();
-  Serial.printf("ms: %d ec: %d wc: %d\n", millis(), current_eg_count, current_wl_count);
+  Serial.printf("ms: %d ec: %d wc: %d\n", millis(), current_eg_count,
+                current_wl_count);
 }
 
 // Control Function ඞ
 void control_function() {
-  Serial.println("Start");
   u_int32_t start_us = micros();
   u_int32_t dt_us = start_us - last_exec_us;
-  
 
   noInterrupts();
   long current_eg_count = eg_count;
@@ -82,8 +83,12 @@ void control_function() {
   interrupts();
 
   // First, calculate rpms
-  float eg_rpm = ( current_eg_count - last_eg_count ) * ROTATIONS_PER_ENGINE_COUNT / dt_us * MICROSECONDS_PER_SECOND * 60.0;
-  float wl_rpm = ( current_wl_count - last_wl_count ) * ROTATIONS_PER_WHEEL_COUNT / dt_us * MICROSECONDS_PER_SECOND * 60.0;
+  float eg_rpm = (current_eg_count - last_eg_count) *
+                 ROTATIONS_PER_ENGINE_COUNT / dt_us * MICROSECONDS_PER_SECOND *
+                 60.0;
+  float wl_rpm = (current_wl_count - last_wl_count) *
+                 ROTATIONS_PER_WHEEL_COUNT / dt_us * MICROSECONDS_PER_SECOND *
+                 60.0;
 
   last_eg_count = current_eg_count;
   last_wl_count = current_wl_count;
@@ -91,6 +96,9 @@ void control_function() {
 
   float error = TARGET_RPM - eg_rpm;
   float velocity_command = error * PROPORTIONAL_GAIN;
+
+  velocity_command = min(velocity_command, 5);
+  velocity_command = max(velocity_command, -5);
 
   bool estop_in = digitalReadFast(ESTOP_IN_PIN);
   bool estop_out = digitalReadFast(ESTOP_OUT_PIN);
@@ -107,24 +115,29 @@ void control_function() {
   digitalWrite(LED_1_PIN, !estop_in);
   digitalWrite(LED_2_PIN, !estop_out);
 
+  Serial.print("Eg RPM: ");
+  Serial.print(eg_rpm);
+  Serial.print(", Vel command: ");
+  Serial.println(velocity_command);
   actuator.update_speed(velocity_command);
 
   u_int32_t stop_us = micros();
-  Log.notice("%d, %d, %F, %F, %d, %d, %F, %F, %d, %d" CR, start_us, stop_us, eg_rpm, wl_rpm, current_eg_count, current_wl_count, error, velocity_command, estop_in, estop_out);
+  Log.notice("%d, %d, %F, %F, %d, %d, %F, %F, %d, %d" CR, start_us, stop_us,
+             eg_rpm, wl_rpm, current_eg_count, current_wl_count, error,
+             velocity_command, estop_in, estop_out);
   log_file.close();
   log_file = SD.open(log_name.c_str(), FILE_WRITE);
-  Serial.println("End");
-  
 }
 
 void setup() {
-  if (kWaitSerial) { while(!Serial) { } }
+  if (kWaitSerial) {
+    while (!Serial) {}
+  }
 
   // Log file determination and initialization
   SD.begin(BUILTIN_SDCARD);
   int log_file_number = 0;
-  while (SD.exists(("log_" + String(log_file_number) + ".txt").c_str()))
-  {
+  while (SD.exists(("log_" + String(log_file_number) + ".txt").c_str())) {
     log_file_number++;
   }
   log_name = "log_" + String(log_file_number) + ".txt";
@@ -134,29 +147,32 @@ void setup() {
   Log.notice("Initialization Started - Model: %d " CR, MODEL_NUMBER);
   log_file.close();
   log_file = SD.open(log_name.c_str(), FILE_WRITE);
-  
+
+  Serial.print("Actuator init: ");
   actuator.init();
+  Serial.println("Complete");
 
   Serial.print("Index: ");
   actuator.encoder_index_search();
   Serial.println("after index");
 
   // Create interrupts to count gear teeth
-  attachInterrupt(EG_INTERRUPT_PIN, [](){++eg_count;}, RISING);
-  attachInterrupt(WL_INTERRUPT_PIN, [](){++wl_count;}, RISING);
-
+  attachInterrupt(
+      EG_INTERRUPT_PIN, []() { ++eg_count; }, RISING);
+  attachInterrupt(
+      WL_INTERRUPT_PIN, []() { ++wl_count; }, RISING);
 
   // Attach correct interrupt based on the desired mode
   last_exec_us = micros();
-  switch(kMode) {
+  switch (kMode) {
     case 0:
       timer.begin(control_function, CONTROL_FUNCTION_INTERVAL);
       break;
     case 1:
-      timer.begin(serial_debugger, kSerialDebuggerIntervalUs);   
-      break; 
+      timer.begin(serial_debugger, kSerialDebuggerIntervalUs);
+      break;
   }
-  
+
   // And so it begins...
 }
 
@@ -164,4 +180,3 @@ void loop() {
   // There should be nothing here
   // If you put something here GROND GROND GROND GROND
 }
-
