@@ -35,13 +35,12 @@ Nothing :)
 
 Modes:
 0 - Normal Operation
-1 - Debug Mode [Teensy Power]
-2 - Debug Mode [Main Power]
+1 - Debug Mode [Serial]
 */
-static constexpr int kMode = 1;
+static constexpr int kMode = 0;
 
 // Startup Settings
-static constexpr int kWaitSerial = 1;
+static constexpr int kWaitSerial = 0;
 static constexpr int kHomeOnStartup = 1;  // Controls index search and home
 
 // Object Declarations
@@ -62,14 +61,36 @@ u_int32_t last_exec_us;
 long int last_eg_count = 0;
 long int last_wl_count = 0;
 
+float last_eg_rpm = 0;
+
 static constexpr int kSerialDebuggerIntervalUs = 100000;
 void serial_debugger() {
+  u_int32_t start_us = micros();
+  u_int32_t dt_us = start_us - last_exec_us;
+
   noInterrupts();
   long current_eg_count = eg_count;
   long current_wl_count = wl_count;
   interrupts();
-  Serial.printf("ms: %d ec: %d wc: %d\n", millis(), current_eg_count,
-                current_wl_count);
+
+  // First, calculate rpms
+  float eg_rpm = (current_eg_count - last_eg_count) *
+                 ROTATIONS_PER_ENGINE_COUNT / dt_us * MICROSECONDS_PER_SECOND *
+                 60.0;
+
+  eg_rpm = EG_RPM_BUTTERWORTH_CONSTANT * eg_rpm +
+           (1 - EG_RPM_BUTTERWORTH_CONSTANT) * last_eg_rpm;
+  last_eg_rpm = eg_rpm;
+
+  float wl_rpm = (current_wl_count - last_wl_count) *
+                 ROTATIONS_PER_WHEEL_COUNT / dt_us * MICROSECONDS_PER_SECOND *
+                 60.0;
+
+  last_eg_count = current_eg_count;
+  last_wl_count = current_wl_count;
+
+  Serial.printf("ms: %d ec: %d wc: %d, eg_rpm: %f wl_rpm: %f\n", millis(),
+                current_eg_count, current_wl_count, eg_rpm, wl_rpm);
 }
 
 // Control Function ඞ
@@ -86,6 +107,11 @@ void control_function() {
   float eg_rpm = (current_eg_count - last_eg_count) *
                  ROTATIONS_PER_ENGINE_COUNT / dt_us * MICROSECONDS_PER_SECOND *
                  60.0;
+
+  eg_rpm = EG_RPM_BUTTERWORTH_CONSTANT * eg_rpm +
+           (1 - EG_RPM_BUTTERWORTH_CONSTANT) * last_eg_rpm;
+  last_eg_rpm = eg_rpm;
+
   float wl_rpm = (current_wl_count - last_wl_count) *
                  ROTATIONS_PER_WHEEL_COUNT / dt_us * MICROSECONDS_PER_SECOND *
                  60.0;
@@ -97,8 +123,8 @@ void control_function() {
   float error = TARGET_RPM - eg_rpm;
   float velocity_command = error * PROPORTIONAL_GAIN;
 
-  velocity_command = min(velocity_command, 5);
-  velocity_command = max(velocity_command, -5);
+  velocity_command = min(velocity_command, VEL_LIMIT);
+  velocity_command = max(velocity_command, -VEL_LIMIT);
 
   bool estop_in = digitalReadFast(ESTOP_IN_PIN);
   bool estop_out = digitalReadFast(ESTOP_OUT_PIN);
@@ -115,21 +141,25 @@ void control_function() {
   digitalWrite(LED_1_PIN, !estop_in);
   digitalWrite(LED_2_PIN, !estop_out);
 
-  Serial.print("Eg RPM: ");
-  Serial.print(eg_rpm);
-  Serial.print(", Vel command: ");
-  Serial.println(velocity_command);
   actuator.update_speed(velocity_command);
 
   u_int32_t stop_us = micros();
-  Log.notice("%d, %d, %F, %F, %d, %d, %F, %F, %d, %d" CR, start_us, stop_us,
-             eg_rpm, wl_rpm, current_eg_count, current_wl_count, error,
-             velocity_command, estop_in, estop_out);
+  Log.notice("%d, %d, %F, %F, %d, %d, %F, %F, %d, %d" CR, start_us / 1000,
+             stop_us / 1000, eg_rpm, wl_rpm, current_eg_count, current_wl_count,
+             error, velocity_command, estop_in, estop_out);
   log_file.close();
   log_file = SD.open(log_name.c_str(), FILE_WRITE);
+
+  Serial.printf("ms: %d ec: %d wc: %d, eg_rpm: %f wl_rpm: %f\n", millis(),
+                current_eg_count, current_wl_count, eg_rpm, wl_rpm);
 }
 
 void setup() {
+  //pin modes
+  pinMode(LED_1_PIN, OUTPUT);
+  pinMode(LED_2_PIN, OUTPUT);
+  pinMode(EG_INTERRUPT_PIN, INPUT_PULLUP);
+
   if (kWaitSerial) {
     while (!Serial) {}
   }
@@ -158,9 +188,9 @@ void setup() {
 
   // Create interrupts to count gear teeth
   attachInterrupt(
-      EG_INTERRUPT_PIN, []() { ++eg_count; }, RISING);
+      digitalPinToInterrupt(EG_INTERRUPT_PIN), []() { ++eg_count; }, RISING);
   attachInterrupt(
-      WL_INTERRUPT_PIN, []() { ++wl_count; }, RISING);
+      digitalPinToInterrupt(WL_INTERRUPT_PIN), []() { ++wl_count; }, RISING);
 
   // Attach correct interrupt based on the desired mode
   last_exec_us = micros();
