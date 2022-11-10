@@ -14,29 +14,9 @@
 #include <Odrive.h>
 
 /*
-GROND GROND GROND GROND
-GROND GROND GROND GROND
-GROND GROND GROND GROND
-GROND GROND GROND GROND
-
-The main file is organized as such:
-[ Settings ]
-[ Object Declarations ]
-[ File-Scope Variable Declarations ]
-[ Control Function ]
--- Setup Function --
-  [ Serial wait (if enabled) ]
-  * Log Begins *
-  [ Object initializtions ]
-  [ Attach control function interrupt ]
-
--- Main Function --
-Nothing :)
-
 Modes:
 0 - Normal Operation
-1 - Debug Mode [Teensy Power]
-2 - Debug Mode [Main Power]
+1 - Serial Debug
 */
 static constexpr int kMode = 0;
 
@@ -49,6 +29,7 @@ Odrive odrive(Serial1);
 Actuator actuator(&odrive);
 IntervalTimer timer;
 File log_file;
+
 // File-Scope Variable Declarations
 String log_name;
 
@@ -58,10 +39,10 @@ volatile unsigned long wl_count = 0;
 
 // Control Function Variables
 u_int32_t last_exec_us;
-
 long int last_eg_count = 0;
 long int last_wl_count = 0;
 
+// Serial debugging function
 static constexpr int kSerialDebuggerIntervalUs = 100000;
 void serial_debugger() {
   noInterrupts();
@@ -161,7 +142,7 @@ void setup() {
       timer.begin(serial_debugger, kSerialDebuggerIntervalUs);
       break;
   }
-  Serial.println("Complete, godspeed.");
+  Serial.println("Complete");
 
   // And so it begins...
 }
