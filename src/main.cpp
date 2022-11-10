@@ -74,7 +74,6 @@ void serial_debugger() {
 
 // Control Function ඞ
 void control_function() {
-  Serial.println("Start");
   u_int32_t start_us = micros();
   u_int32_t dt_us = start_us - last_exec_us;
 
@@ -112,10 +111,10 @@ void control_function() {
              velocity_command, estop_in, estop_out);
   log_file.close();
   log_file = SD.open(log_name.c_str(), FILE_WRITE);
-  Serial.println("End");
 }
 
 void setup() {
+  Serial.println("Starting up, greetings user...");
   if (kWaitSerial) {
     while (!Serial) {}
   }
@@ -127,6 +126,8 @@ void setup() {
     log_file_number++;
   }
   log_name = "log_" + String(log_file_number) + ".txt";
+
+  // Begin log and save first line
   Serial.println("Logging at: " + log_name);
   log_file = SD.open(log_name.c_str(), FILE_WRITE);
   Log.begin(LOG_LEVEL_NOTICE, &log_file, false);
@@ -135,15 +136,14 @@ void setup() {
   log_file = SD.open(log_name.c_str(), FILE_WRITE);
 
   Serial.print("Actuator communication init: ");
-  actuator.init();
-  Serial.println("Complete");
+  actuator.init() ? Serial.println("Complete") : Serial.println("Failed");
 
   Serial.print("Index search: ");
-  actuator.encoder_index_search();
-  Serial.println("Complete");
+  actuator.encoder_index_search() ? Serial.println("Complete")
+                                  : Serial.println("Failed");
 
   // Create interrupts to count gear teeth
-  Serial.print("Attach geartooth interrupts: ");
+  Serial.print("Attaching geartooth interrupts: ");
   attachInterrupt(
       EG_INTERRUPT_PIN, []() { ++eg_count; }, RISING);
   attachInterrupt(
