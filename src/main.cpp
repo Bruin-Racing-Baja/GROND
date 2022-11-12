@@ -2,15 +2,18 @@
 #include <FlexCAN_T4.h>
 
 // Libraries
+// clang-format off
+#include <SPI.h>
+// clang-format on
 #include <ArduinoLog.h>
 #include <HardwareSerial.h>
 #include <SD.h>
-#include <SPI.h>
 
 // Classes
 #include <Actuator.h>
 #include <Constants.h>
 #include <Odrive.h>
+#include <OdriveCAN.h>
 
 /*
 GROND GROND GROND GROND
@@ -45,6 +48,7 @@ static constexpr int kHomeOnStartup = 1;  // Controls index search and home
 
 // Object Declarations
 Odrive odrive(Serial1);
+OdriveCAN odrive_can;
 Actuator actuator(&odrive);
 IntervalTimer timer;
 File log_file;
@@ -61,14 +65,22 @@ u_int32_t last_exec_us;
 long int last_eg_count = 0;
 long int last_wl_count = 0;
 
+// Parses CAN messages when received
+void odrive_can_parse(const CAN_message_t& msg) {
+  odrive_can.parse_message(msg);
+}
+
 static constexpr int kSerialDebuggerIntervalUs = 100000;
 void serial_debugger() {
   noInterrupts();
   long current_eg_count = eg_count;
   long current_wl_count = wl_count;
   interrupts();
-  Serial.printf("ms: %d ec: %d wc: %d\n", millis(), current_eg_count,
-                current_wl_count);
+  odrive_can.request_vbus_voltage();
+  odrive_can.request_motor_error(1);
+  Serial.printf("ms: %d ec: %d wc: %d voltage: %.2f heartbeat: %d\n", millis(),
+                current_eg_count, current_wl_count, odrive_can.get_voltage(),
+                odrive_can.is_alive());
 }
 
 // Control Function ඞ
@@ -143,6 +155,7 @@ void setup() {
   log_file = SD.open(log_name.c_str(), FILE_WRITE);
 
   actuator.init();
+  odrive_can.init(&odrive_can_parse);
 
   Serial.print("Index: ");
   actuator.encoder_index_search();
@@ -167,46 +180,4 @@ void setup() {
 
   // And so it begins...
 }
-
-void loop() {
-  // put your main code here, to run repeatedly:
-  while (!Serial) {
-    ;
-    ;
-  }
-  if (can1.read(msg)) {
-    Serial.print("CAN1 ");
-    Serial.print("MB: ");
-    Serial.print(msg.mb);
-    Serial.print("  ID: 0x");
-    Serial.print(msg.id, HEX);
-    Serial.print("  EXT: ");
-    Serial.print(msg.flags.extended);
-    Serial.print("  LEN: ");
-    Serial.print(msg.len);
-    Serial.print(" DATA: ");
-    for (uint8_t i = 0; i < 8; i++) {
-      Serial.print(msg.buf[i]);
-      Serial.print(" ");
-    }
-    Serial.print("  TS: ");
-    Serial.println(msg.timestamp);
-    if (msg.id == 0x017) {
-      Serial.print("Voltage: ");
-      float f;
-      memcpy(&f, msg.buf, 4);
-      Serial.println(f);
-    }
-  }
-
-  if (millis() - t2 > 100) {
-    t2 = millis();
-    static uint8_t id = 0x017;
-    CAN_message_t msgOut;
-    msgOut.id = id;
-    msgOut.len = 8;
-    msgOut.flags.remote = 1;
-    msgOut.flags.extended = 0;
-    can1.write(msgOut);
-  }
-}
+void loop() {}
