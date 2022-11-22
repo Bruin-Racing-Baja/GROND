@@ -33,8 +33,8 @@ bool OLED::init() {
 
 bool OLED::refresh() {
     display.clearDisplay();
-    setFormat();
-    display.println("Runtime: "+String((millis()-ss_m)/1000.0));
+//    setFormat();
+//    display.println("Runtime: "+String((millis()-ss_m)/1000.0));
     display.display();
     return 1;
 }
