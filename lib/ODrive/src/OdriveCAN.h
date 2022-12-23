@@ -1,6 +1,11 @@
 #ifndef odrive_can_h
 #define odrive_can_h
 
+#define COMMAND_SUCCESS 0
+#define COMMAND_ERROR_INVALID_AXIS 1
+#define COMMAND_ERROR_INVALID_COMMAND 2
+#define COMMAND_ERROR_WRITE_FAILED 3
+
 #define CAN_HEARTBEAT_MSG 0x1
 #define CAN_ESTOP_MSG 0x2
 #define CAN_GET_MOTOR_ERROR 0x3
@@ -37,16 +42,18 @@ class OdriveCAN {
   bool init(void (*parse)(const CAN_message_t& msg));
 
   void parse_message(const CAN_message_t& msg);
-  int32_t is_alive() { return millis() - last_heartbeat; }
 
-  void request_motor_error(int axis);
-  void request_encoder_error(int axis);
-  void request_sensorless_error(int axis);
-  void request_encoder_count(int axis);
-  void request_iq(int axis);
-  void request_sensorless_estimates(int axis);
-  void request_vbus_voltage();
+  // Requesters
+  int request_motor_error(int axis);
+  int request_encoder_error(int axis);
+  int request_sensorless_error(int axis);
+  int request_encoder_count(int axis);
+  int request_iq(int axis);
+  int request_sensorless_estimates(int axis);
+  int request_vbus_voltage();
 
+  // Getters
+  uint32_t get_time_since_heartbeat_ms();
   uint32_t get_axis_error(int axis);
   uint8_t get_axis_state(int axis);
   uint8_t get_motor_flags(int axis);
@@ -66,14 +73,30 @@ class OdriveCAN {
   float get_voltage();
   float get_current();
 
-  void start_anticogging(int axis);
-  void reboot();
-  void clear_errors();
+  // Commands
+  int start_anticogging(int axis);
+  int reboot();
+  int clear_errors();
 
-  void set_state(int axis, int state);
+  // Setters
+  int set_state(int axis, int state);
+  int set_axis_node_id(int axis, int axis_node_id);
+  int set_controller_modes(int axis, int control_mode, int input_mode);
+  int set_input_pos(int axis, float input_pos, int16_t vel_ff,
+                    int16_t torque_ff);
+  int set_input_vel(int axis, float input_pos, int16_t torque_ff);
+  int set_input_torque(int axis, float input_torque);
+  int set_limits(int axis, float current_limit, float vel_limit);
+  int set_traj_vel_limit(int axis, float traj_vel_limit);
+  int set_traj_accel_limits(int axis, float traj_decel_limit,
+                            float traj_accel_limit);
+  int set_traj_intertia(int axis, float traj_inertia);
+  int set_linear_count(int axis, float position);
+  int set_pos_gain(int axis, float pos_gain);
+  int set_vel_gains(int axis, float vel_gain, float vel_integrator_gain);
 
  private:
-  uint32_t last_heartbeat = -1;
+  uint32_t last_heartbeat_ms = 0;
   uint32_t axis_error[2];
   uint8_t axis_state[2], motor_flags[2], encoder_flags[2], controller_flags[2];
   uint32_t motor_error[2], encoder_error[2], sensorless_error[2];
@@ -86,7 +109,7 @@ class OdriveCAN {
   int send_command(int axis, int cmd_id, bool remote, uint8_t buf[8]);
   int send_command(int cmd_id, bool remote, uint8_t buf[8]);
 
-  int send_command(int axis_id, int cmd_id, bool remote);
-  int send_command(int cmd_id, bool remote);
+  int send_empty_command(int axis_id, int cmd_id, bool remote);
+  int send_empty_command(int cmd_id, bool remote);
 };
 #endif

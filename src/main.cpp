@@ -80,7 +80,7 @@ void serial_debugger() {
   odrive_can.request_motor_error(1);
   Serial.printf("ms: %d ec: %d wc: %d voltage: %.2f heartbeat: %d\n", millis(),
                 current_eg_count, current_wl_count, odrive_can.get_voltage(),
-                odrive_can.is_alive());
+                odrive_can.get_time_since_heartbeat_ms());
 }
 
 // Control Function ඞ
