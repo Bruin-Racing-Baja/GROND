@@ -78,9 +78,12 @@ void serial_debugger() {
   interrupts();
   odrive_can.request_vbus_voltage();
   odrive_can.request_motor_error(1);
-  Serial.printf("ms: %d ec: %d wc: %d voltage: %.2f heartbeat: %d\n", millis(),
-                current_eg_count, current_wl_count, odrive_can.get_voltage(),
-                odrive_can.get_time_since_heartbeat_ms());
+  odrive_can.request_encoder_count(1);
+  delay(100);
+  Serial.printf(
+      "ms: %d ec: %d wc: %d voltage: %.2f heartbeat: %d enc: %d\n", millis(),
+      current_eg_count, current_wl_count, odrive_can.get_voltage(),
+      odrive_can.get_time_since_heartbeat_ms(), odrive_can.get_shadow_count(1));
 }
 
 // Control Function ඞ
