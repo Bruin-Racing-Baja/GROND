@@ -15,7 +15,7 @@ bool OdriveCAN::init(void (*parse)(const CAN_message_t& msg)) {
 
 int OdriveCAN::send_command(int axis, int cmd_id, bool remote, uint8_t buf[8]) {
   CAN_message_t msg;
-  if (axis != 0 || axis != 1) {
+  if (axis != 0 && axis != 1) {
     return COMMAND_ERROR_INVALID_AXIS;
   }
 
