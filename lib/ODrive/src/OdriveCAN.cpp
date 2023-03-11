@@ -42,7 +42,7 @@ int OdriveCAN::send_command(int cmd_id, bool remote, uint8_t buf[8]) {
 
 int OdriveCAN::send_empty_command(int axis_id, int cmd_id, bool remote) {
   uint8_t buf[8] = {0};
-  return OdriveCAN::send_command(0, cmd_id, remote, buf);
+  return OdriveCAN::send_command(axis_id, cmd_id, remote, buf);
 }
 
 int OdriveCAN::send_empty_command(int cmd_id, bool remote) {
@@ -74,8 +74,8 @@ void OdriveCAN::parse_message(const CAN_message_t& msg) {
       break;
     case CAN_GET_ENCODER_ESTIMATES:
       // Cyclic message; sent every 10ms
-      memcpy(&vel_estimate[axis], msg.buf, 4);
-      memcpy(&pos_estimate[axis], msg.buf + 4, 4);
+      memcpy(&pos_estimate[axis], msg.buf, 4);
+      memcpy(&vel_estimate[axis], msg.buf + 4, 4);
       break;
     case CAN_GET_ENCODER_COUNT:
       memcpy(&shadow_count[axis], msg.buf, 4);
@@ -129,6 +129,7 @@ int OdriveCAN::request_vbus_voltage() {
 uint32_t OdriveCAN::get_time_since_heartbeat_ms() {
   return millis() - last_heartbeat_ms;
 }
+
 uint32_t OdriveCAN::get_axis_error(int axis) {
   return axis_error[axis];
 }

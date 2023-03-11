@@ -85,7 +85,7 @@ void serial_debugger() {
       "%d\n",
       millis(), current_eg_count, current_wl_count, odrive_can.get_voltage(),
       odrive_can.get_time_since_heartbeat_ms(), odrive_can.get_shadow_count(1),
-      odrive_can.get_count_in_cpr(1), can_error);
+      can_error);
 }
 
 // Control Function ඞ
