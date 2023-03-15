@@ -44,6 +44,8 @@ class OdriveCAN {
   void parse_message(const CAN_message_t& msg);
 
   // Requesters
+  int request_report(int axis);
+
   int request_motor_error(int axis);
   int request_encoder_error(int axis);
   int request_sensorless_error(int axis);

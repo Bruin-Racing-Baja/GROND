@@ -49,7 +49,7 @@ static constexpr int kHomeOnStartup = 1;  // Controls index search and home
 // Object Declarations
 Odrive odrive(Serial1);
 OdriveCAN odrive_can;
-Actuator actuator(&odrive);
+Actuator actuator(&odrive_can);
 IntervalTimer timer;
 File log_file;
 // File-Scope Variable Declarations

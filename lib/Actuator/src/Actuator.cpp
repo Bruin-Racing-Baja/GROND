@@ -7,27 +7,25 @@
 /**
  * Constructor assigns odrive pointer as class member
  */
-Actuator::Actuator(Odrive* odrive_in)
-{
-    odrive = odrive_in;
+Actuator::Actuator(OdriveCAN* odrive_in) {
+  odrive = odrive_in;
 }
 
 /**
  * Initializes connection to physical odrive
  * Returns bool if successful
  */
-bool Actuator::init()
-{
-    return odrive->init_connection();
+bool Actuator::init() {
+  // Due to CAN interrupt handler weirdness
+  return 1;
 }
 
 /**
  * Instructs Odrive to attempt encoder homing
  * Returns a bool if successful
  */
-bool Actuator::encoder_index_search()
-{
-    return odrive->encoder_index_search(ACTUATOR_AXIS);
+bool Actuator::encoder_index_search() {
+  return odrive->encoder_index_search(ACTUATOR_AXIS);
 }
 
 // Speed functions
@@ -37,9 +35,8 @@ bool Actuator::encoder_index_search()
  * 
  * Returns the current set speed of the actuator
  */
-float Actuator::update_speed(float target_speed)
-{
-        return Actuator::set_speed(target_speed);
+float Actuator::update_speed(float target_speed) {
+  return Actuator::set_speed(target_speed);
 }
 
 /**
@@ -47,21 +44,45 @@ float Actuator::update_speed(float target_speed)
  * 
  * Returns the speed that is set
  */
-float Actuator::set_speed(float set_speed)
-{
-    odrive->set_velocity(set_speed, ACTUATOR_AXIS);
-    current_speed = set_speed;
-    return current_speed;
+float Actuator::set_speed(float set_speed) {
+  odrive->set_velocity(set_speed, ACTUATOR_AXIS);
+  current_speed = set_speed;
+  return current_speed;
 }
 
-// Getter functions
+// Readout Functions
 
-int Actuator::get_status()
-{
-    return status;
+/**
+ * Asks the ODrive to query current actuator information
+ * 
+ * Returns success code
+*/
+int Actuator::query_readout() {
+  int result = 0;
+  result += odrive->request_motor_error(ACTUATOR_AXIS);
+  result += odrive->request_encoder_error(ACTUATOR_AXIS);
+  result += odrive->request_sensorless_error(ACTUATOR_AXIS);
+
+  result += odrive->request_encoder_count(ACTUATOR_AXIS);
+  result += odrive->request_sensorless_estimates(ACTUATOR_AXIS);
+
+  result += odrive->request_vbus_voltage();
+
+  return result;
 }
 
-float Actuator::get_current_speed()
-{
-    return current_speed;
+/**
+ * Returns the previously queried actuator readout
+*/
+int Actuator::get_readout(float readout[8]) {
+  readout[0] = odrive->get_motor_error(ACTUATOR_AXIS);
+  readout[1] = odrive->get_encoder_error(ACTUATOR_AXIS);
+  readout[2] = odrive->get_sensorless_error(ACTUATOR_AXIS);
+
+  readout[3] = odrive->get_encoder_count(ACTUATOR_AXIS);
+  readout[4] = odrive->get_sensorless_estimates(ACTUATOR_AXIS);
+
+  readout[5] = odrive->get_vbus_voltage();
+
+  return 0;
 }
