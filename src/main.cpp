@@ -14,25 +14,6 @@
 #include <Odrive.h>
 
 /*
-GROND GROND GROND GROND
-GROND GROND GROND GROND
-GROND GROND GROND GROND
-GROND GROND GROND GROND
-
-The main file is organized as such:
-[ Settings ]
-[ Object Declarations ]
-[ File-Scope Variable Declarations ]
-[ Control Function ]
--- Setup Function --
-  [ Serial wait (if enabled) ]
-  * Log Begins *
-  [ Object initializtions ]
-  [ Attach control function interrupt ]
-
--- Main Function --
-Nothing :)
-
 Modes:
 0 - Normal Operation
 1 - Debug Mode [Serial]
@@ -40,7 +21,7 @@ Modes:
 static constexpr int kMode = 0;
 
 // Startup Settings
-static constexpr int kWaitSerial = 0;
+static constexpr int kWaitSerial = 1;
 static constexpr int kHomeOnStartup = 1;  // Controls index search and home
 
 // Object Declarations
@@ -48,6 +29,7 @@ Odrive odrive(Serial1);
 Actuator actuator(&odrive);
 IntervalTimer timer;
 File log_file;
+
 // File-Scope Variable Declarations
 String log_name;
 
@@ -57,7 +39,6 @@ volatile unsigned long wl_count = 0;
 
 // Control Function Variables
 u_int32_t last_exec_us;
-
 long int last_eg_count = 0;
 long int last_wl_count = 0;
 
@@ -128,16 +109,7 @@ void control_function() {
 
   bool estop_in = digitalReadFast(ESTOP_IN_PIN);
   bool estop_out = digitalReadFast(ESTOP_OUT_PIN);
-  // if (estop_in){
-  //   if (velocity_command < 0){
-  //     velocity_command = 0;
-  //   }
-  // }
-  // if (estop_out){
-  //   if (velocity_command > 0){
-  //     velocity_command = 0;
-  //   }
-  // }
+
   digitalWrite(LED_1_PIN, !estop_in);
   digitalWrite(LED_2_PIN, !estop_out);
 
@@ -171,6 +143,8 @@ void setup() {
     log_file_number++;
   }
   log_name = "log_" + String(log_file_number) + ".txt";
+
+  // Begin log and save first line
   Serial.println("Logging at: " + log_name);
   log_file = SD.open(log_name.c_str(), FILE_WRITE);
   Log.begin(LOG_LEVEL_NOTICE, &log_file, false);
@@ -182,9 +156,12 @@ void setup() {
   actuator.init();
   Serial.println("Complete");
 
-  Serial.print("Index: ");
-  actuator.encoder_index_search();
-  Serial.println("after index");
+  Serial.print("Actuator communication init: ");
+  actuator.init() ? Serial.println("Complete") : Serial.println("Failed");
+
+  Serial.print("Index search: ");
+  actuator.encoder_index_search() ? Serial.println("Complete")
+                                  : Serial.println("Failed");
 
   // Create interrupts to count gear teeth
   attachInterrupt(
@@ -193,6 +170,7 @@ void setup() {
       digitalPinToInterrupt(WL_INTERRUPT_PIN), []() { ++wl_count; }, RISING);
 
   // Attach correct interrupt based on the desired mode
+  Serial.print("Attaching timer interrupt: ");
   last_exec_us = micros();
   switch (kMode) {
     case 0:
