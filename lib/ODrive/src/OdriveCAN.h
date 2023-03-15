@@ -44,7 +44,7 @@ class OdriveCAN {
   void parse_message(const CAN_message_t& msg);
 
   // Requesters
-  int request_report(int axis);
+  int request_readout(int axis);
 
   int request_motor_error(int axis);
   int request_encoder_error(int axis);
@@ -55,6 +55,8 @@ class OdriveCAN {
   int request_vbus_voltage();
 
   // Getters
+  int get_readout(int axis, float report[19]);
+
   uint32_t get_time_since_heartbeat_ms();
   uint32_t get_axis_error(int axis);
   uint8_t get_axis_state(int axis);

@@ -97,6 +97,27 @@ void OdriveCAN::parse_message(const CAN_message_t& msg) {
 }
 
 // Requesters
+
+/**
+ * Requests all information needed for a readout over CAN
+ * 
+ * Returns a sum of all the return values of the individual requests
+*/
+int OdriveCAN::request_readout(int axis) {
+  int result = 0;
+  result += request_motor_error(axis);
+  result += request_encoder_error(axis);
+  result += request_sensorless_error(axis);
+
+  result += request_encoder_count(axis);
+  result += request_iq(axis);
+  result += request_sensorless_estimates(axis);
+
+  result += request_vbus_voltage();
+
+  return result;
+}
+
 int OdriveCAN::request_motor_error(int axis) {
   return send_empty_command(axis, CAN_GET_MOTOR_ERROR, 1);
 }
@@ -126,6 +147,35 @@ int OdriveCAN::request_vbus_voltage() {
 }
 
 // Getters
+/**
+ * Get readout of ODRIVE state for certain axis, returned through reference
+ * 
+ * Retunrs 0 as all are member variables
+*/
+int OdriveCAN::get_readout(int axis, float readout[19]) {
+  readout[0] = get_time_since_heartbeat_ms();
+  readout[1] = get_voltage();
+  readout[2] = get_current();
+  readout[3] = get_axis_error(axis);
+  readout[4] = get_motor_error(axis);
+  readout[5] = get_encoder_error(axis);
+  readout[6] = get_sensorless_error(axis);
+  readout[7] = get_motor_flags(axis);
+  readout[8] = get_encoder_flags(axis);
+  readout[9] = get_controller_flags(axis);
+  readout[10] = get_axis_state(axis);
+  readout[11] = get_vel_estimate(axis);
+  readout[12] = get_pos_estimate(axis);
+  readout[13] = get_shadow_count(axis);
+  readout[14] = get_count_in_cpr(axis);
+  readout[15] = get_iq_setpoint(axis);
+  readout[16] = get_iq_measured(axis);
+  readout[17] = get_sensorless_vel_estimate(axis);
+  readout[18] = get_sensorless_pos_estimate(axis);
+
+  return 0;
+}
+
 uint32_t OdriveCAN::get_time_since_heartbeat_ms() {
   return millis() - last_heartbeat_ms;
 }

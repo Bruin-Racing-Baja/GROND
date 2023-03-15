@@ -51,38 +51,17 @@ float Actuator::set_speed(float set_speed) {
 }
 
 // Readout Functions
-
 /**
- * Asks the ODrive to query current actuator information
+ * Provides a readout passed through float array
  * 
- * Returns success code
+ * Returns 0 as all member variables
 */
-int Actuator::query_readout() {
-  int result = 0;
-  result += odrive->request_motor_error(ACTUATOR_AXIS);
-  result += odrive->request_encoder_error(ACTUATOR_AXIS);
-  result += odrive->request_sensorless_error(ACTUATOR_AXIS);
-
-  result += odrive->request_encoder_count(ACTUATOR_AXIS);
-  result += odrive->request_sensorless_estimates(ACTUATOR_AXIS);
-
-  result += odrive->request_vbus_voltage();
-
-  return result;
-}
-
-/**
- * Returns the previously queried actuator readout
-*/
-int Actuator::get_readout(float readout[8]) {
-  readout[0] = odrive->get_motor_error(ACTUATOR_AXIS);
-  readout[1] = odrive->get_encoder_error(ACTUATOR_AXIS);
-  readout[2] = odrive->get_sensorless_error(ACTUATOR_AXIS);
-
-  readout[3] = odrive->get_encoder_count(ACTUATOR_AXIS);
-  readout[4] = odrive->get_sensorless_estimates(ACTUATOR_AXIS);
-
-  readout[5] = odrive->get_vbus_voltage();
+int Actuator::get_readout(float readout[5]) {
+  readout[0] = commanded_axis_state;
+  readout[1] = commanded_axis_velocity;
+  readout[2] = actuator_error;
+  readout[3] = homing_error;
+  readout[4] = homing_timer;
 
   return 0;
 }

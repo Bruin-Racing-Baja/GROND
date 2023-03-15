@@ -13,13 +13,18 @@ class Actuator {
   float update_speed(float target_speed);
 
   // Getters
-  int query_readout();
-  int get_readout(float readout[8]);
+  int get_readout(float readout[5]);
 
  private:
-  int status;
+  int actuator_error = 0;
+  int homing_error = 0;
+  int homing_timer = 0;
   float current_speed = 0.0;
+  int commanded_axis_state;
+  float commanded_axis_velocity = 0.0;
+  // Constants
   int axis_number = ACTUATOR_AXIS;
+  // Functions
   float set_speed(float set_speed);
 
   OdriveCAN* odrive;
