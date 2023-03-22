@@ -25,7 +25,9 @@ bool Actuator::init() {
  * Returns a bool if successful
  */
 bool Actuator::encoder_index_search() {
-  return odrive->encoder_index_search(ACTUATOR_AXIS);
+  int state = odrive->set_state(ACTUATOR_AXIS, 6);
+  if (state == 0) return true;
+  else return false;
 }
 
 // Speed functions
@@ -45,7 +47,7 @@ float Actuator::update_speed(float target_speed) {
  * Returns the speed that is set
  */
 float Actuator::set_speed(float set_speed) {
-  odrive->set_velocity(set_speed, ACTUATOR_AXIS);
+  odrive->set_input_vel(ACTUATOR_AXIS, set_speed, 0);
   current_speed = set_speed;
   return current_speed;
 }

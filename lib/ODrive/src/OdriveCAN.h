@@ -1,6 +1,9 @@
 #ifndef odrive_can_h
 #define odrive_can_h
 
+#include <Arduino.h>
+#include <FlexCAN_T4.h>
+
 #define COMMAND_SUCCESS 0
 #define COMMAND_ERROR_INVALID_AXIS 1
 #define COMMAND_ERROR_INVALID_COMMAND 2

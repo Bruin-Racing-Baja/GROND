@@ -1,6 +1,7 @@
 #ifndef actuator_h
 #define actuator_h
 
+#include <Arduino.h>
 #include <Constants.h>
 #include <OdriveCAN.h>
 

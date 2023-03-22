@@ -11,8 +11,8 @@ const float PROPORTIONAL_GAIN = 0.01;
 #if model == 21
 const int MODEL_NUMBER = model;
 // Pins
-const int EG_INTERRUPT_PIN = 37;
-const int WL_INTERRUPT_PIN = 36;
+const int EG_INTERRUPT_PIN = 10;
+const int WL_INTERRUPT_PIN = 11;
 const int ESTOP_IN_PIN = 33;
 const int ESTOP_OUT_PIN = 32;
 const int LED_1_PIN = 28;
