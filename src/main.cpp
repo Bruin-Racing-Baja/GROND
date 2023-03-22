@@ -40,11 +40,10 @@ Modes:
 1 - Debug Mode [Teensy Power]
 2 - Debug Mode [Main Power]
 */
-static constexpr int kMode = 1;
+static constexpr int kMode = 0;
 
 // Startup Settings
 static constexpr int kWaitSerial = 1;
-static constexpr int kHomeOnStartup = 1;  // Controls index search and home
 
 // Object Declarations
 Odrive odrive(Serial1);
@@ -99,6 +98,7 @@ void control_function() {
   long current_wl_count = wl_count;
   interrupts();
 
+
   // First, calculate rpms
   float eg_rpm = (current_eg_count - last_eg_count) *
                  ROTATIONS_PER_ENGINE_COUNT / dt_us * MICROSECONDS_PER_SECOND *
@@ -114,30 +114,28 @@ void control_function() {
   float error = TARGET_RPM - eg_rpm;
   float velocity_command = error * PROPORTIONAL_GAIN;
 
-  bool estop_in = digitalReadFast(ESTOP_IN_PIN);
-  bool estop_out = digitalReadFast(ESTOP_OUT_PIN);
-  // if (estop_in){
-  //   if (velocity_command < 0){
-  //     velocity_command = 0;
-  //   }
-  // }
-  // if (estop_out){
-  //   if (velocity_command > 0){
-  //     velocity_command = 0;
-  //   }
-  // }
-  digitalWrite(LED_1_PIN, !estop_in);
-  digitalWrite(LED_2_PIN, !estop_out);
-
   actuator.update_speed(velocity_command);
 
   u_int32_t stop_us = micros();
   Log.notice("%d, %d, %F, %F, %d, %d, %F, %F, %d, %d" CR, start_us, stop_us,
              eg_rpm, wl_rpm, current_eg_count, current_wl_count, error,
-             velocity_command, estop_in, estop_out);
+             velocity_command);
   log_file.close();
   log_file = SD.open(log_name.c_str(), FILE_WRITE);
-  Serial.println("End");
+
+  int can_error = 0;
+  can_error = (can_error << 1) & odrive_can.request_vbus_voltage();
+  can_error = (can_error << 1) & odrive_can.request_motor_error(1);
+  can_error = (can_error << 1) & odrive_can.request_encoder_count(1);
+
+  Serial.printf(
+      "ms: %d ec: %d wc: %d voltage: %.2f heartbeat: %d enc: %d can_error: "
+      "%d axis_state: %d axis_error: %d odrive_velocity_estimate: %f\n",
+      millis(), current_eg_count, current_wl_count, odrive_can.get_voltage(),
+      odrive_can.get_time_since_heartbeat_ms(), odrive_can.get_shadow_count(1),
+      can_error, odrive_can.get_axis_state(1), odrive_can.get_axis_error(1), odrive_can.get_vel_estimate(1));
+
+      //need current state, current velocity, 
 }
 
 void setup() {
@@ -176,6 +174,7 @@ void setup() {
   last_exec_us = micros();
   switch (kMode) {
     case 0:
+      odrive_can.set_state(1, 8);
       timer.begin(control_function, CONTROL_FUNCTION_INTERVAL);
       break;
     case 1:

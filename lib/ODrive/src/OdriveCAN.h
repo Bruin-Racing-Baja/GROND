@@ -91,7 +91,7 @@ class OdriveCAN {
   int set_controller_modes(int axis, int control_mode, int input_mode);
   int set_input_pos(int axis, float input_pos, int16_t vel_ff,
                     int16_t torque_ff);
-  int set_input_vel(int axis, float input_pos, int16_t torque_ff);
+  int set_input_vel(int axis, float input_pos, float torque_ff);
   int set_input_torque(int axis, float input_torque);
   int set_limits(int axis, float current_limit, float vel_limit);
   int set_traj_vel_limit(int axis, float traj_vel_limit);

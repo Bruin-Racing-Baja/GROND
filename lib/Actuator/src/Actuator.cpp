@@ -9,6 +9,7 @@
  */
 Actuator::Actuator(OdriveCAN* odrive_in) {
   odrive = odrive_in;
+  commanded_axis_state = odrive->get_axis_state(ACTUATOR_AXIS);
 }
 
 /**
@@ -47,6 +48,7 @@ float Actuator::update_speed(float target_speed) {
  * Returns the speed that is set
  */
 float Actuator::set_speed(float set_speed) {
+  odrive->set_state(ACTUATOR_AXIS, 8);
   odrive->set_input_vel(ACTUATOR_AXIS, set_speed, 0);
   current_speed = set_speed;
   return current_speed;
