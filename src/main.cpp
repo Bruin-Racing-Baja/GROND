@@ -71,20 +71,37 @@ void odrive_can_parse(const CAN_message_t& msg) {
 
 static constexpr int kSerialDebuggerIntervalUs = 100000;
 void serial_debugger() {
+  u_int32_t start_us = micros();
+  u_int32_t dt_us = start_us - last_exec_us;
+
   noInterrupts();
   long current_eg_count = eg_count;
   long current_wl_count = wl_count;
   interrupts();
-  int can_error = 0;
-  can_error = (can_error << 1) & odrive_can.request_vbus_voltage();
-  can_error = (can_error << 1) & odrive_can.request_motor_error(1);
-  can_error = (can_error << 1) & odrive_can.request_encoder_count(1);
-  Serial.printf(
-      "ms: %d ec: %d wc: %d voltage: %.2f heartbeat: %d enc: %d can_error: "
-      "%d\n",
-      millis(), current_eg_count, current_wl_count, odrive_can.get_voltage(),
-      odrive_can.get_time_since_heartbeat_ms(), odrive_can.get_shadow_count(1),
-      can_error);
+
+  // First, calculate rpms
+  float eg_rpm = (current_eg_count - last_eg_count) *
+                 ROTATIONS_PER_ENGINE_COUNT / dt_us * MICROSECONDS_PER_SECOND *
+                 60.0;
+  float wl_rpm = (current_wl_count - last_wl_count) *
+                 ROTATIONS_PER_WHEEL_COUNT / dt_us * MICROSECONDS_PER_SECOND *
+                 60.0;
+
+  last_eg_count = current_eg_count;
+  last_wl_count = current_wl_count;
+  last_exec_us = start_us;
+
+  Serial.printf("ms: %d ec: %d wc: %d ec_rpm: %f wc_rpm %f\n", millis(), current_eg_count, current_wl_count, eg_rpm, wl_rpm);
+  // int can_error = 0;
+  // can_error = (can_error << 1) & odrive_can.request_vbus_voltage();
+  // can_error = (can_error << 1) & odrive_can.request_motor_error(1);
+  // can_error = (can_error << 1) & odrive_can.request_encoder_count(1);
+  // Serial.printf(
+  //     "ms: %d ec: %d wc: %d voltage: %.2f heartbeat: %d enc: %d can_error: "
+  //     "%d\n",
+  //     millis(), current_eg_count, current_wl_count, odrive_can.get_voltage(),
+  //     odrive_can.get_time_since_heartbeat_ms(), odrive_can.get_shadow_count(1),
+  //     can_error);
 }
 
 // Control Function ඞ
@@ -131,10 +148,10 @@ Log.notice("%d, %d, %F, %F, %d, %d, %F, %F, %d, %d, %f  %d \n" CR, start_us, sto
 
   Serial.printf(
       "ms: %d ec: %d wc: %d voltage: %.2f heartbeat: %d enc: %d can_error: "
-      "%d axis_state: %d axis_error: %d odrive_velocity_estimate: %f\n",
+      "%d axis_state: %d axis_error: %d odrive_velocity_estimate: %f eg_rpm: %f vel_cmd: %f \n",
       millis(), current_eg_count, current_wl_count, odrive_can.get_voltage(),
       odrive_can.get_time_since_heartbeat_ms(), odrive_can.get_shadow_count(1),
-      can_error, odrive_can.get_axis_state(1), odrive_can.get_axis_error(1), odrive_can.get_vel_estimate(1));
+      can_error, odrive_can.get_axis_state(1), odrive_can.get_axis_error(1), odrive_can.get_vel_estimate(1), eg_rpm, velocity_command);
 
       //need current state, current velocity, 
 }
@@ -167,7 +184,7 @@ void setup() {
 
   // Create interrupts to count gear teeth
   attachInterrupt(
-      EG_INTERRUPT_PIN, []() { ++eg_count; }, RISING);
+      EG_INTERRUPT_PIN, []() { ++eg_count; }, FALLING);
   attachInterrupt(
       WL_INTERRUPT_PIN, []() { ++wl_count; }, RISING);
 

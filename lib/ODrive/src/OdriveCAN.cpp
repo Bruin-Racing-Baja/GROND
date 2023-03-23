@@ -267,8 +267,8 @@ int OdriveCAN::clear_errors() {
 
 // Setters
 int OdriveCAN::set_state(int axis, int state) {
-  Serial.print("Switching State to ");
-  Serial.println(state);
+  //Serial.print("Switching State to ");
+  //Serial.println(state);
   uint8_t buf[8] = {0};
   memcpy(buf, &state, 4);
   return send_command(axis, CAN_SET_AXIS_REQUESTED_STATE, 0, buf);
