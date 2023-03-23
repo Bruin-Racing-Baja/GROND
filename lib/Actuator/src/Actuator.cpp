@@ -27,6 +27,7 @@ bool Actuator::init() {
  */
 bool Actuator::encoder_index_search() {
   int state = odrive->set_state(ACTUATOR_AXIS, 6);
+  delayMicroseconds(5*1000000);
   if (state == 0) return true;
   else return false;
 }

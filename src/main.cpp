@@ -117,16 +117,17 @@ void control_function() {
   actuator.update_speed(velocity_command);
 
   u_int32_t stop_us = micros();
-  Log.notice("%d, %d, %F, %F, %d, %d, %F, %F, %d, %d" CR, start_us, stop_us,
-             eg_rpm, wl_rpm, current_eg_count, current_wl_count, error,
-             velocity_command);
-  log_file.close();
-  log_file = SD.open(log_name.c_str(), FILE_WRITE);
-
-  int can_error = 0;
+    int can_error = 0;
   can_error = (can_error << 1) & odrive_can.request_vbus_voltage();
   can_error = (can_error << 1) & odrive_can.request_motor_error(1);
   can_error = (can_error << 1) & odrive_can.request_encoder_count(1);
+Log.notice("%d, %d, %F, %F, %d, %d, %F, %F, %d, %d, %f  %d \n" CR, start_us, stop_us,
+             eg_rpm, wl_rpm, current_eg_count, current_wl_count, error,
+             velocity_command, odrive_can.get_voltage(), odrive_can.get_time_since_heartbeat_ms(), odrive_can.get_shadow_count(1),
+            can_error);
+  log_file.close();
+  log_file = SD.open(log_name.c_str(), FILE_WRITE);
+
 
   Serial.printf(
       "ms: %d ec: %d wc: %d voltage: %.2f heartbeat: %d enc: %d can_error: "
