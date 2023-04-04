@@ -12,17 +12,16 @@ const int VEL_LIMIT = 10;
 #if model == 21
 const int MODEL_NUMBER = model;
 // Pins
-const int EG_INTERRUPT_PIN = 37;
-const int WL_INTERRUPT_PIN = 36;
+const int EG_INTERRUPT_PIN = 10;
+const int WL_INTERRUPT_PIN = 11;
 const int ESTOP_IN_PIN = 33;
 const int ESTOP_OUT_PIN = 32;
 const int LED_1_PIN = 28;
 const int LED_2_PIN = 29;
 
 // Physical constants
-const float ROTATIONS_PER_ENGINE_COUNT = 1.0 / 4;
-const float ROTATIONS_PER_WHEEL_COUNT =
-    6.0 / 17;  // gear box to secondary ratio
+const float ROTATIONS_PER_ENGINE_COUNT = 1.0 / 16;
+const float ROTATIONS_PER_WHEEL_COUNT = 1.0 / 12;  // Actual rotation of wheel
 const float SECONDARY_ROTATIONS_PER_WHEEL_COUNT =
     3.0 / 4;  //Rotation of secondary
 

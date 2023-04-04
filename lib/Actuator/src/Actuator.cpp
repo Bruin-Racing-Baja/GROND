@@ -7,27 +7,29 @@
 /**
  * Constructor assigns odrive pointer as class member
  */
-Actuator::Actuator(Odrive* odrive_in)
-{
-    odrive = odrive_in;
+Actuator::Actuator(OdriveCAN* odrive_in) {
+  odrive = odrive_in;
+  commanded_axis_state = odrive->get_axis_state(ACTUATOR_AXIS);
 }
 
 /**
  * Initializes connection to physical odrive
  * Returns bool if successful
  */
-bool Actuator::init()
-{
-    return odrive->init_connection();
+bool Actuator::init() {
+  // Due to CAN interrupt handler weirdness
+  return 1;
 }
 
 /**
  * Instructs Odrive to attempt encoder homing
  * Returns a bool if successful
  */
-bool Actuator::encoder_index_search()
-{
-    return odrive->encoder_index_search(ACTUATOR_AXIS);
+bool Actuator::encoder_index_search() {
+  int state = odrive->set_state(ACTUATOR_AXIS, 6);
+  delayMicroseconds(5*1000000);
+  if (state == 0) return true;
+  else return false;
 }
 
 // Speed functions
@@ -37,9 +39,8 @@ bool Actuator::encoder_index_search()
  * 
  * Returns the current set speed of the actuator
  */
-float Actuator::update_speed(float target_speed)
-{
-        return Actuator::set_speed(target_speed);
+float Actuator::update_speed(float target_speed) {
+  return Actuator::set_speed(target_speed);
 }
 
 /**
@@ -47,21 +48,25 @@ float Actuator::update_speed(float target_speed)
  * 
  * Returns the speed that is set
  */
-float Actuator::set_speed(float set_speed)
-{
-    odrive->set_velocity(set_speed, ACTUATOR_AXIS);
-    current_speed = set_speed;
-    return current_speed;
+float Actuator::set_speed(float set_speed) {
+  odrive->set_state(ACTUATOR_AXIS, 8);
+  odrive->set_input_vel(ACTUATOR_AXIS, set_speed, 0);
+  current_speed = set_speed;
+  return current_speed;
 }
 
-// Getter functions
+// Readout Functions
+/**
+ * Provides a readout passed through float array
+ * 
+ * Returns 0 as all member variables
+*/
+int Actuator::get_readout(float readout[5]) {
+  readout[0] = commanded_axis_state;
+  readout[1] = commanded_axis_velocity;
+  readout[2] = actuator_error;
+  readout[3] = homing_error;
+  readout[4] = homing_timer;
 
-int Actuator::get_status()
-{
-    return status;
-}
-
-float Actuator::get_current_speed()
-{
-    return current_speed;
+  return 0;
 }

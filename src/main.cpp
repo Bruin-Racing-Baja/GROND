@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <FlexCAN_T4.h>
 
 // Libraries
 // clang-format off
@@ -12,6 +13,7 @@
 #include <Actuator.h>
 #include <Constants.h>
 #include <Odrive.h>
+#include <OdriveCAN.h>
 
 /*
 Modes:
@@ -26,7 +28,8 @@ static constexpr int kHomeOnStartup = 1;  // Controls index search and home
 
 // Object Declarations
 Odrive odrive(Serial1);
-Actuator actuator(&odrive);
+OdriveCAN odrive_can;
+Actuator actuator(&odrive_can);
 IntervalTimer timer;
 File log_file;
 
@@ -42,7 +45,10 @@ u_int32_t last_exec_us;
 long int last_eg_count = 0;
 long int last_wl_count = 0;
 
-float last_eg_rpm = 0;
+// Parses CAN messages when received
+void odrive_can_parse(const CAN_message_t& msg) {
+  odrive_can.parse_message(msg);
+}
 
 static constexpr int kSerialDebuggerIntervalUs = 100000;
 void serial_debugger() {
@@ -58,20 +64,26 @@ void serial_debugger() {
   float eg_rpm = (current_eg_count - last_eg_count) *
                  ROTATIONS_PER_ENGINE_COUNT / dt_us * MICROSECONDS_PER_SECOND *
                  60.0;
-
-  eg_rpm = EG_RPM_BUTTERWORTH_CONSTANT * eg_rpm +
-           (1 - EG_RPM_BUTTERWORTH_CONSTANT) * last_eg_rpm;
-  last_eg_rpm = eg_rpm;
-
   float wl_rpm = (current_wl_count - last_wl_count) *
                  ROTATIONS_PER_WHEEL_COUNT / dt_us * MICROSECONDS_PER_SECOND *
                  60.0;
 
   last_eg_count = current_eg_count;
   last_wl_count = current_wl_count;
+  last_exec_us = start_us;
 
-  Serial.printf("ms: %d ec: %d wc: %d, eg_rpm: %f wl_rpm: %f\n", millis(),
+  Serial.printf("ms: %d ec: %d wc: %d ec_rpm: %f wc_rpm %f\n", millis(),
                 current_eg_count, current_wl_count, eg_rpm, wl_rpm);
+  // int can_error = 0;
+  // can_error = (can_error << 1) & odrive_can.request_vbus_voltage();
+  // can_error = (can_error << 1) & odrive_can.request_motor_error(1);
+  // can_error = (can_error << 1) & odrive_can.request_encoder_count(1);
+  // Serial.printf(
+  //     "ms: %d ec: %d wc: %d voltage: %.2f heartbeat: %d enc: %d can_error: "
+  //     "%d\n",
+  //     millis(), current_eg_count, current_wl_count, odrive_can.get_voltage(),
+  //     odrive_can.get_time_since_heartbeat_ms(), odrive_can.get_shadow_count(1),
+  //     can_error);
 }
 
 // Control Function ඞ
@@ -88,11 +100,6 @@ void control_function() {
   float eg_rpm = (current_eg_count - last_eg_count) *
                  ROTATIONS_PER_ENGINE_COUNT / dt_us * MICROSECONDS_PER_SECOND *
                  60.0;
-
-  eg_rpm = EG_RPM_BUTTERWORTH_CONSTANT * eg_rpm +
-           (1 - EG_RPM_BUTTERWORTH_CONSTANT) * last_eg_rpm;
-  last_eg_rpm = eg_rpm;
-
   float wl_rpm = (current_wl_count - last_wl_count) *
                  ROTATIONS_PER_WHEEL_COUNT / dt_us * MICROSECONDS_PER_SECOND *
                  60.0;
@@ -104,34 +111,34 @@ void control_function() {
   float error = TARGET_RPM - eg_rpm;
   float velocity_command = error * PROPORTIONAL_GAIN;
 
-  velocity_command = min(velocity_command, VEL_LIMIT);
-  velocity_command = max(velocity_command, -VEL_LIMIT);
-
-  bool estop_in = digitalReadFast(ESTOP_IN_PIN);
-  bool estop_out = digitalReadFast(ESTOP_OUT_PIN);
-
-  digitalWrite(LED_1_PIN, !estop_in);
-  digitalWrite(LED_2_PIN, !estop_out);
-
   actuator.update_speed(velocity_command);
 
   u_int32_t stop_us = micros();
-  Log.notice("%d, %d, %F, %F, %d, %d, %F, %F, %d, %d" CR, start_us / 1000,
-             stop_us / 1000, eg_rpm, wl_rpm, current_eg_count, current_wl_count,
-             error, velocity_command, estop_in, estop_out);
+  int can_error = 0;
+  can_error = (can_error << 1) & odrive_can.request_vbus_voltage();
+  can_error = (can_error << 1) & odrive_can.request_motor_error(1);
+  can_error = (can_error << 1) & odrive_can.request_encoder_count(1);
+  Log.notice("%d, %d, %F, %F, %d, %d, %F, %F, %d, %d, %f  %d \n" CR, start_us,
+             stop_us, eg_rpm, wl_rpm, current_eg_count, current_wl_count, error,
+             velocity_command, odrive_can.get_voltage(),
+             odrive_can.get_time_since_heartbeat_ms(),
+             odrive_can.get_shadow_count(1), can_error);
   log_file.close();
   log_file = SD.open(log_name.c_str(), FILE_WRITE);
 
-  Serial.printf("ms: %d ec: %d wc: %d, eg_rpm: %f wl_rpm: %f\n", millis(),
-                current_eg_count, current_wl_count, eg_rpm, wl_rpm);
+  Serial.printf(
+      "ms: %d ec: %d wc: %d voltage: %.2f heartbeat: %d enc: %d can_error: "
+      "%d axis_state: %d axis_error: %d odrive_velocity_estimate: %f eg_rpm: "
+      "%f vel_cmd: %f \n",
+      millis(), current_eg_count, current_wl_count, odrive_can.get_voltage(),
+      odrive_can.get_time_since_heartbeat_ms(), odrive_can.get_shadow_count(1),
+      can_error, odrive_can.get_axis_state(1), odrive_can.get_axis_error(1),
+      odrive_can.get_vel_estimate(1), eg_rpm, velocity_command);
+
+  //need current state, current velocity,
 }
 
 void setup() {
-  //pin modes
-  pinMode(LED_1_PIN, OUTPUT);
-  pinMode(LED_2_PIN, OUTPUT);
-  pinMode(EG_INTERRUPT_PIN, INPUT_PULLUP);
-
   if (kWaitSerial) {
     while (!Serial) {}
   }
@@ -152,12 +159,8 @@ void setup() {
   log_file.close();
   log_file = SD.open(log_name.c_str(), FILE_WRITE);
 
-  Serial.print("Actuator init: ");
   actuator.init();
-  Serial.println("Complete");
-
-  Serial.print("Actuator communication init: ");
-  actuator.init() ? Serial.println("Complete") : Serial.println("Failed");
+  odrive_can.init(&odrive_can_parse);
 
   Serial.print("Index search: ");
   actuator.encoder_index_search() ? Serial.println("Complete")
@@ -165,26 +168,25 @@ void setup() {
 
   // Create interrupts to count gear teeth
   attachInterrupt(
-      digitalPinToInterrupt(EG_INTERRUPT_PIN), []() { ++eg_count; }, RISING);
+      EG_INTERRUPT_PIN, []() { ++eg_count; }, FALLING);
   attachInterrupt(
-      digitalPinToInterrupt(WL_INTERRUPT_PIN), []() { ++wl_count; }, RISING);
+      WL_INTERRUPT_PIN, []() { ++wl_count; }, RISING);
 
   // Attach correct interrupt based on the desired mode
   Serial.print("Attaching timer interrupt: ");
   last_exec_us = micros();
   switch (kMode) {
-    case 0:
-      timer.begin(control_function, CONTROL_FUNCTION_INTERVAL);
-      break;
-    case 1:
-      timer.begin(serial_debugger, kSerialDebuggerIntervalUs);
-      break;
+    switch (kMode) {
+      case 0:
+        odrive_can.set_state(1, 8);
+        timer.begin(control_function, CONTROL_FUNCTION_INTERVAL);
+        break;
+      case 1:
+        timer.begin(serial_debugger, kSerialDebuggerIntervalUs);
+        break;
+        timer.begin(serial_debugger, kSerialDebuggerIntervalUs);
+        break;
+    }
   }
-
-  // And so it begins...
 }
-
-void loop() {
-  // There should be nothing here
-  // If you put something here GROND GROND GROND GROND
-}
+void loop() {}
