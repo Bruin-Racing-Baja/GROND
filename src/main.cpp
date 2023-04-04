@@ -176,17 +176,13 @@ void setup() {
   Serial.print("Attaching timer interrupt: ");
   last_exec_us = micros();
   switch (kMode) {
-    switch (kMode) {
-      case 0:
-        odrive_can.set_state(1, 8);
-        timer.begin(control_function, CONTROL_FUNCTION_INTERVAL);
-        break;
-      case 1:
-        timer.begin(serial_debugger, kSerialDebuggerIntervalUs);
-        break;
-        timer.begin(serial_debugger, kSerialDebuggerIntervalUs);
-        break;
-    }
+    case 0:
+      odrive_can.set_state(1, 8);
+      timer.begin(control_function, CONTROL_FUNCTION_INTERVAL);
+      break;
+    case 1:
+      timer.begin(serial_debugger, kSerialDebuggerIntervalUs);
+      break;
   }
 }
 void loop() {}
