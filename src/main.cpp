@@ -1,7 +1,7 @@
+/* GROND */
+
 #include <Arduino.h>
 #include <FlexCAN_T4.h>
-
-// Libraries
 // clang-format off
 #include <SPI.h>
 // clang-format on
@@ -15,19 +15,12 @@
 #include <Odrive.h>
 #include <OdriveCAN.h>
 
-/*
-Modes:
-0 - Normal Operation
-1 - Debug Mode [Serial]
-*/
-static constexpr int kMode = 0;
-
 // Startup Settings
+static constexpr int kMode = OPERATING_MODE;
 static constexpr int kWaitSerial = 1;
 static constexpr int kHomeOnStartup = 1;  // Controls index search and home
 
 // Object Declarations
-Odrive odrive(Serial1);
 OdriveCAN odrive_can;
 Actuator actuator(&odrive_can);
 IntervalTimer timer;
@@ -50,7 +43,6 @@ void odrive_can_parse(const CAN_message_t& msg) {
   odrive_can.parse_message(msg);
 }
 
-static constexpr int kSerialDebuggerIntervalUs = 100000;
 void serial_debugger() {
   u_int32_t start_us = micros();
   u_int32_t dt_us = start_us - last_exec_us;
@@ -159,29 +151,33 @@ void setup() {
   log_file.close();
   log_file = SD.open(log_name.c_str(), FILE_WRITE);
 
-  actuator.init();
+  // Establish odrive connection
   odrive_can.init(&odrive_can_parse);
+  actuator.init();
 
-  Serial.print("Index search: ");
-  actuator.encoder_index_search() ? Serial.println("Complete")
-                                  : Serial.println("Failed");
+  // Home actuator
+  if (kHomeOnStartup) {
+    Serial.print("Index search: ");
+    actuator.encoder_index_search() ? Serial.println("Complete")
+                                    : Serial.println("Failed");
+  }
 
-  // Create interrupts to count gear teeth
+  // Attach wl, eg interrupts
   attachInterrupt(
       EG_INTERRUPT_PIN, []() { ++eg_count; }, FALLING);
   attachInterrupt(
       WL_INTERRUPT_PIN, []() { ++wl_count; }, RISING);
 
-  // Attach correct interrupt based on the desired mode
-  Serial.print("Attaching timer interrupt: ");
+  // Attach operating mode interrupt
+  Serial.print("Attaching interrupt mode " + String(kMode));
   last_exec_us = micros();
   switch (kMode) {
     case 0:
       odrive_can.set_state(1, 8);
-      timer.begin(control_function, CONTROL_FUNCTION_INTERVAL);
+      timer.begin(control_function, CONTROL_FUNCTION_INTERVAL_US);
       break;
     case 1:
-      timer.begin(serial_debugger, kSerialDebuggerIntervalUs);
+      timer.begin(serial_debugger, SERIAL_DEBUGGER_INTERVAL_US);
       break;
   }
 }

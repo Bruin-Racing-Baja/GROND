@@ -18,7 +18,7 @@ int OdriveCAN::send_command(int axis, int cmd_id, bool remote, uint8_t buf[8]) {
   if (axis != 0 && axis != 1) {
     return COMMAND_ERROR_INVALID_AXIS;
   }
-  
+
   if (cmd_id < 0x1 || 0x1b < cmd_id) {
     return COMMAND_ERROR_INVALID_COMMAND;
   }
@@ -100,8 +100,8 @@ void OdriveCAN::parse_message(const CAN_message_t& msg) {
 
 /**
  * Requests all information needed for a readout over CAN
- * 
- * Returns a sum of all the return values of the individual requests
+ * @param axis the odrive axis to request information from
+ * @return a sum of all the return values of the individual requests
 */
 int OdriveCAN::request_readout(int axis) {
   int result = 0;
@@ -148,9 +148,11 @@ int OdriveCAN::request_vbus_voltage() {
 
 // Getters
 /**
- * Get readout of ODRIVE state for certain axis, returned through reference
+ * Get readout of ODRIVE state
+ * @param axis the axis to get the readout from
+ * @param readout a float array to store the readout in
  * 
- * Retunrs 0 as all are member variables
+ * @return 0 as all are member variables
 */
 int OdriveCAN::get_readout(int axis, float readout[19]) {
   readout[0] = get_time_since_heartbeat_ms();
@@ -287,7 +289,7 @@ int OdriveCAN::set_controller_modes(int axis, int control_mode,
   //memcpy(&control_mode, buf, 4);
   //memcpy(&input_mode, buf + 4, 4);
   memcpy(buf, &control_mode, 4);
-  memcpy(buf+4, &input_mode, 4);
+  memcpy(buf + 4, &input_mode, 4);
   return send_command(axis, CAN_SET_CONTROLLER_MODES, 0);
 }
 
@@ -298,8 +300,8 @@ int OdriveCAN::set_input_pos(int axis, float input_pos, int16_t vel_ff,
   //memcpy(&vel_ff, buf + 4, 2);
   //memcpy(&torque_ff, buf + 6, 2);
   memcpy(buf, &input_pos, 4);
-  memcpy(buf+4, &vel_ff,  2);
-  memcpy(buf+6, &torque_ff,  2);
+  memcpy(buf + 4, &vel_ff, 2);
+  memcpy(buf + 6, &torque_ff, 2);
   return send_command(axis, CAN_SET_INPUT_POS, 0);
 }
 
@@ -309,8 +311,8 @@ int OdriveCAN::set_input_vel(int axis, float input_vel, float torque_ff) {
   //memcpy(&input_vel, buf, 4);
   //memcpy(&torque_ff, buf + 4, 4);
 
-  memcpy(buf, &input_vel,4);
-  memcpy(buf+4 , &torque_ff , 4);
+  memcpy(buf, &input_vel, 4);
+  memcpy(buf + 4, &torque_ff, 4);
   return send_command(axis, CAN_SET_INPUT_VEL, 0, buf);
 }
 
@@ -327,7 +329,7 @@ int OdriveCAN::set_limits(int axis, float current_limit, float vel_limit) {
   //memcpy(&current_limit, buf, 4);
   //memcpy(&vel_limit, buf + 4, 4);
   memcpy(buf, &current_limit, 4);
-  memcpy(buf+4, &vel_limit,  4);
+  memcpy(buf + 4, &vel_limit, 4);
   return send_command(axis, CAN_SET_LIMITS, 0);
 }
 
@@ -344,7 +346,7 @@ int OdriveCAN::set_traj_accel_limits(int axis, float traj_decel_limit,
   uint8_t buf[8] = {0};
   //memcpy(&traj_decel_limit, buf + 4, 4);
   //memcpy(&traj_accel_limit, buf, 4);
-  memcpy(buf+4, &traj_decel_limit, 4);
+  memcpy(buf + 4, &traj_decel_limit, 4);
   memcpy(buf, &traj_accel_limit, 4);
   return send_command(axis, CAN_SET_TRAJ_ACCEL_LIMITS, 0);
 }
@@ -373,11 +375,11 @@ int OdriveCAN::set_pos_gain(int axis, float pos_gain) {
 
 int OdriveCAN::set_vel_gains(int axis, float vel_gain,
                              float vel_integrator_gain) {
-  uint8_t buf[8] = {0}; 
+  uint8_t buf[8] = {0};
   //memcpy(&vel_gain, buf, 4);
   //memcpy(&vel_integrator_gain, buf + 4, 4);
 
-  memcpy(buf, &vel_gain,  4);
-  memcpy(buf+4, &vel_integrator_gain, 4);
+  memcpy(buf, &vel_gain, 4);
+  memcpy(buf + 4, &vel_integrator_gain, 4);
   return send_command(axis, CAN_SET_VEL_GAINS, 0);
 }
