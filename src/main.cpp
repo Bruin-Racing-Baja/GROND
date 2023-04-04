@@ -16,34 +16,15 @@
 #include <OdriveCAN.h>
 
 /*
-GROND GROND GROND GROND
-GROND GROND GROND GROND
-GROND GROND GROND GROND
-GROND GROND GROND GROND
-
-The main file is organized as such:
-[ Settings ]
-[ Object Declarations ]
-[ File-Scope Variable Declarations ]
-[ Control Function ]
--- Setup Function --
-  [ Serial wait (if enabled) ]
-  * Log Begins *
-  [ Object initializtions ]
-  [ Attach control function interrupt ]
-
--- Main Function --
-Nothing :)
-
 Modes:
 0 - Normal Operation
-1 - Debug Mode [Teensy Power]
-2 - Debug Mode [Main Power]
+1 - Debug Mode [Serial]
 */
 static constexpr int kMode = 0;
 
 // Startup Settings
 static constexpr int kWaitSerial = 1;
+static constexpr int kHomeOnStartup = 1;  // Controls index search and home
 
 // Object Declarations
 Odrive odrive(Serial1);
@@ -51,6 +32,7 @@ OdriveCAN odrive_can;
 Actuator actuator(&odrive_can);
 IntervalTimer timer;
 File log_file;
+
 // File-Scope Variable Declarations
 String log_name;
 
@@ -60,7 +42,6 @@ volatile unsigned long wl_count = 0;
 
 // Control Function Variables
 u_int32_t last_exec_us;
-
 long int last_eg_count = 0;
 long int last_wl_count = 0;
 
@@ -91,7 +72,8 @@ void serial_debugger() {
   last_wl_count = current_wl_count;
   last_exec_us = start_us;
 
-  Serial.printf("ms: %d ec: %d wc: %d ec_rpm: %f wc_rpm %f\n", millis(), current_eg_count, current_wl_count, eg_rpm, wl_rpm);
+  Serial.printf("ms: %d ec: %d wc: %d ec_rpm: %f wc_rpm %f\n", millis(),
+                current_eg_count, current_wl_count, eg_rpm, wl_rpm);
   // int can_error = 0;
   // can_error = (can_error << 1) & odrive_can.request_vbus_voltage();
   // can_error = (can_error << 1) & odrive_can.request_motor_error(1);
@@ -106,7 +88,6 @@ void serial_debugger() {
 
 // Control Function ඞ
 void control_function() {
-  Serial.println("Start");
   u_int32_t start_us = micros();
   u_int32_t dt_us = start_us - last_exec_us;
 
@@ -114,7 +95,6 @@ void control_function() {
   long current_eg_count = eg_count;
   long current_wl_count = wl_count;
   interrupts();
-
 
   // First, calculate rpms
   float eg_rpm = (current_eg_count - last_eg_count) *
@@ -134,26 +114,28 @@ void control_function() {
   actuator.update_speed(velocity_command);
 
   u_int32_t stop_us = micros();
-    int can_error = 0;
+  int can_error = 0;
   can_error = (can_error << 1) & odrive_can.request_vbus_voltage();
   can_error = (can_error << 1) & odrive_can.request_motor_error(1);
   can_error = (can_error << 1) & odrive_can.request_encoder_count(1);
-Log.notice("%d, %d, %F, %F, %d, %d, %F, %F, %d, %d, %f  %d \n" CR, start_us, stop_us,
-             eg_rpm, wl_rpm, current_eg_count, current_wl_count, error,
-             velocity_command, odrive_can.get_voltage(), odrive_can.get_time_since_heartbeat_ms(), odrive_can.get_shadow_count(1),
-            can_error);
+  Log.notice("%d, %d, %F, %F, %d, %d, %F, %F, %d, %d, %f  %d \n" CR, start_us,
+             stop_us, eg_rpm, wl_rpm, current_eg_count, current_wl_count, error,
+             velocity_command, odrive_can.get_voltage(),
+             odrive_can.get_time_since_heartbeat_ms(),
+             odrive_can.get_shadow_count(1), can_error);
   log_file.close();
   log_file = SD.open(log_name.c_str(), FILE_WRITE);
 
-
   Serial.printf(
       "ms: %d ec: %d wc: %d voltage: %.2f heartbeat: %d enc: %d can_error: "
-      "%d axis_state: %d axis_error: %d odrive_velocity_estimate: %f eg_rpm: %f vel_cmd: %f \n",
+      "%d axis_state: %d axis_error: %d odrive_velocity_estimate: %f eg_rpm: "
+      "%f vel_cmd: %f \n",
       millis(), current_eg_count, current_wl_count, odrive_can.get_voltage(),
       odrive_can.get_time_since_heartbeat_ms(), odrive_can.get_shadow_count(1),
-      can_error, odrive_can.get_axis_state(1), odrive_can.get_axis_error(1), odrive_can.get_vel_estimate(1), eg_rpm, velocity_command);
+      can_error, odrive_can.get_axis_state(1), odrive_can.get_axis_error(1),
+      odrive_can.get_vel_estimate(1), eg_rpm, velocity_command);
 
-      //need current state, current velocity, 
+  //need current state, current velocity,
 }
 
 void setup() {
@@ -168,6 +150,8 @@ void setup() {
     log_file_number++;
   }
   log_name = "log_" + String(log_file_number) + ".txt";
+
+  // Begin log and save first line
   Serial.println("Logging at: " + log_name);
   log_file = SD.open(log_name.c_str(), FILE_WRITE);
   Log.begin(LOG_LEVEL_NOTICE, &log_file, false);
@@ -178,9 +162,9 @@ void setup() {
   actuator.init();
   odrive_can.init(&odrive_can_parse);
 
-  Serial.print("Index: ");
-  actuator.encoder_index_search();
-  Serial.println("after index");
+  Serial.print("Index search: ");
+  actuator.encoder_index_search() ? Serial.println("Complete")
+                                  : Serial.println("Failed");
 
   // Create interrupts to count gear teeth
   attachInterrupt(
@@ -189,17 +173,20 @@ void setup() {
       WL_INTERRUPT_PIN, []() { ++wl_count; }, RISING);
 
   // Attach correct interrupt based on the desired mode
+  Serial.print("Attaching timer interrupt: ");
   last_exec_us = micros();
   switch (kMode) {
-    case 0:
-      odrive_can.set_state(1, 8);
-      timer.begin(control_function, CONTROL_FUNCTION_INTERVAL);
-      break;
-    case 1:
-      timer.begin(serial_debugger, kSerialDebuggerIntervalUs);
-      break;
+    switch (kMode) {
+      case 0:
+        odrive_can.set_state(1, 8);
+        timer.begin(control_function, CONTROL_FUNCTION_INTERVAL);
+        break;
+      case 1:
+        timer.begin(serial_debugger, kSerialDebuggerIntervalUs);
+        break;
+        timer.begin(serial_debugger, kSerialDebuggerIntervalUs);
+        break;
+    }
   }
-
-  // And so it begins...
 }
 void loop() {}
