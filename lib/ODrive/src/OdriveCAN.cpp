@@ -268,9 +268,15 @@ int OdriveCAN::clear_errors() {
 }
 
 // Setters
+/**
+ * Set odrive axis to requested state
+ * If the axis is already in the requested state, do nothing
+ * @return result of send_command
+*/
 int OdriveCAN::set_state(int axis, int state) {
-  //Serial.print("Switching State to ");
-  //Serial.println(state);
+  if (get_axis_state(axis) == state) {
+    return 0;
+  }
   uint8_t buf[8] = {0};
   memcpy(buf, &state, 4);
   return send_command(axis, CAN_SET_AXIS_REQUESTED_STATE, 0, buf);
@@ -278,7 +284,6 @@ int OdriveCAN::set_state(int axis, int state) {
 
 int OdriveCAN::set_axis_node_id(int axis, int axis_node_id) {
   uint8_t buf[8] = {0};
-  //memcpy(&axis_node_id, buf, 4);
   memcpy(buf, &axis_node_id, 4);
   return send_command(axis, CAN_SET_AXIS_NODE_ID, 0);
 }

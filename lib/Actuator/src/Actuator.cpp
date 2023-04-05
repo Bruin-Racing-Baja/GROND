@@ -52,7 +52,7 @@ float Actuator::update_speed(float target_speed) {
  * @return the speed that is set
  */
 float Actuator::set_speed(float set_speed) {
-  odrive->set_state(ACTUATOR_AXIS, 8);
+  odrive->set_state(ACTUATOR_AXIS, ODRIVE_VELOCITY_CONTROL_STATE);
   odrive->set_input_vel(ACTUATOR_AXIS, set_speed, 0);
   current_speed = set_speed;
   return current_speed;
