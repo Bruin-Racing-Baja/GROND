@@ -114,7 +114,7 @@ void control_function() {
              stop_us, eg_rpm, wl_rpm, current_eg_count, current_wl_count, error,
              velocity_command, odrive_can.get_voltage(),
              odrive_can.get_time_since_heartbeat_ms(),
-             odrive_can.get_shadow_count(1), can_error);
+             odrive_can.get_shadow_count(ACTUATOR_AXIS), can_error);
   log_file.close();
   log_file = SD.open(log_name.c_str(), FILE_WRITE);
 
@@ -123,9 +123,11 @@ void control_function() {
       "%d axis_state: %d axis_error: %d odrive_velocity_estimate: %f eg_rpm: "
       "%f vel_cmd: %f \n",
       millis(), current_eg_count, current_wl_count, odrive_can.get_voltage(),
-      odrive_can.get_time_since_heartbeat_ms(), odrive_can.get_shadow_count(1),
-      can_error, odrive_can.get_axis_state(1), odrive_can.get_axis_error(1),
-      odrive_can.get_vel_estimate(1), eg_rpm, velocity_command);
+      odrive_can.get_time_since_heartbeat_ms(),
+      odrive_can.get_shadow_count(ACTUATOR_AXIS), can_error,
+      odrive_can.get_axis_state(ACTUATOR_AXIS),
+      odrive_can.get_axis_error(ACTUATOR_AXIS),
+      odrive_can.get_vel_estimate(ACTUATOR_AXIS), eg_rpm, velocity_command);
 
   //need current state, current velocity,
 }
@@ -172,11 +174,11 @@ void setup() {
   Serial.print("Attaching interrupt mode " + String(kMode));
   last_exec_us = micros();
   switch (kMode) {
-    case 0:
-      odrive_can.set_state(1, 8);
+    case OPERATING_MODE:
+      odrive_can.set_state(ACTUATOR_AXIS, ODRIVE_VELOCITY_CONTROL_STATE);
       timer.begin(control_function, CONTROL_FUNCTION_INTERVAL_US);
       break;
-    case 1:
+    case SERIAL_DEBUG_MODE:
       timer.begin(serial_debugger, SERIAL_DEBUGGER_INTERVAL_US);
       break;
   }
