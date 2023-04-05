@@ -4,6 +4,7 @@
 #include <SPI.h>
 #include <ArduinoLog.h>
 #include <SD.h>
+#include <TimeLib.h>
 
 // Classes
 #include <Constants.h>
@@ -44,10 +45,20 @@ Modes:
 IntervalTimer timer;
 File log_file;
 // File-Scope Variable Declarations
+bool sd_init = false;
 
 // Geartooth counts
 volatile unsigned long eg_count = 0;
 volatile unsigned long gb_count = 0;
+
+time_t getTeensy3Time()
+{
+  return Teensy3Clock.get();
+}
+
+void getTimeString(char *buf){
+  sprintf(buf, "%d-%02d-%02d %d:%02d:%02d", year(), month(), day(), hour(), minute(), second());
+}
 
 // Control Function ඞ
 void control_function() {
@@ -57,18 +68,37 @@ void control_function() {
 void setup() {
   if (WAIT_SERIAL) { while(!Serial) { } }
 
-  // Log file determination and initialization
-  int log_file_number = 0;
-  while (SD.exists(("log_" + String(log_file_number) + ".txt").c_str()))
-  {
-    log_file_number++;
+  // Initialize clock
+  setSyncProvider(getTeensy3Time);
+  if (timeStatus() != timeSet) {
+    Serial.println("Failed to sync with RTC");
   }
-  String log_name = "log_" + String(log_file_number) + ".txt";
-  Serial.println("Logging at: " + log_name);
-  log_file = SD.open(log_name.c_str(), FILE_WRITE);
-  Log.begin(LOG_LEVEL, &log_file, false);
-  Log.notice("Initialization Started - Model: %d " CR, MODEL_NUMBER);
+
+  // SD initialization
+  sd_init = SD.begin(BUILTIN_SDCARD);
+  if(!sd_init){
+    Serial.println("SD failed to init");
+  }
+
+  // Log file determination and initialization
+  // TODO skip log if SD failed?
+  char log_name[35];
+  sprintf(log_name, "log_%d-%02d-%02d_%d-%02d-%02d.txt", year(), month(), day(), hour(), minute(), second());
+
+  log_file = SD.open(log_name, FILE_WRITE);
   
+  if(log_file){
+    char timestamp[25];
+    getTimeString(timestamp);
+
+    Serial.printf("Logging at: %s\n", log_name);
+    Log.begin(LOG_LEVEL, &log_file, false);
+    Log.notice("Initialization Started (%s) - Model: %d " CR, timestamp, MODEL_NUMBER);
+    log_file.close();
+  }
+  else{
+    Serial.printf("Failed to open log file: %s\n", log_name);
+  }
 
   // Create interrupts to count gear teeth
   attachInterrupt(EG_PIN, [](){++eg_count;}, RISING);
