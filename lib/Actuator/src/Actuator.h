@@ -21,7 +21,7 @@ class Actuator {
   int homing_error = 0;
   int homing_timer = 0;
   float current_speed = 0.0;
-  int commanded_axis_state;
+  int commanded_axis_state = -1;
   float commanded_axis_velocity = 0.0;
   // Constants
   int axis_number = ACTUATOR_AXIS;
