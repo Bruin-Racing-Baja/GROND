@@ -15,6 +15,12 @@
 #include <Odrive.h>
 #include <OdriveCAN.h>
 
+#define BUTTON_UP 28
+#define BUTTON_LEFT 29
+#define BUTTON_CENTER 30
+#define BUTTON_RIGHT 31
+#define BUTTON_DOWN 32
+
 // Startup Settings
 static constexpr int kMode = OPERATING_MODE;
 static constexpr int kWaitSerial = 1;
@@ -79,6 +85,11 @@ void serial_debugger() {
 }
 
 // Control Function ඞ
+
+float desired_speed = 0;
+int last_left_button = 0;
+int last_right_button = 0;
+
 void control_function() {
   u_int32_t start_us = micros();
   u_int32_t dt_us = start_us - last_exec_us;
@@ -103,20 +114,36 @@ void control_function() {
   float error = TARGET_RPM - eg_rpm;
   float velocity_command = error * PROPORTIONAL_GAIN;
 
+  int left_button = !digitalRead(BUTTON_LEFT);
+  int right_button = !digitalRead(BUTTON_RIGHT);
+  int center_button = !digitalRead(BUTTON_CENTER);
+  if (left_button && !last_left_button) {
+    desired_speed -= 1;
+  } else if (right_button && !last_right_button) {
+    desired_speed += 1;
+  }
+  if (center_button) {
+    desired_speed = 0;
+  }
+  last_left_button = left_button;
+  last_right_button = right_button;
+  velocity_command = desired_speed;
+
   actuator.update_speed(velocity_command);
 
   u_int32_t stop_us = micros();
   int can_error = 0;
-  can_error = (can_error << 1) & odrive_can.request_vbus_voltage();
-  can_error = (can_error << 1) & odrive_can.request_motor_error(1);
-  can_error = (can_error << 1) & odrive_can.request_encoder_count(1);
-  Log.notice("%d, %d, %F, %F, %d, %d, %F, %F, %d, %d, %f  %d \n" CR, start_us,
+  can_error = (can_error << 1) | !!odrive_can.request_vbus_voltage();
+  can_error =
+      (can_error << 1) | !!odrive_can.request_motor_error(ACTUATOR_AXIS);
+  can_error =
+      (can_error << 1) | !!odrive_can.request_encoder_count(ACTUATOR_AXIS);
+  Log.notice("%d, %d, %F, %F, %d, %d, %F, %F, %d, %d, %d, %d\n", start_us,
              stop_us, eg_rpm, wl_rpm, current_eg_count, current_wl_count, error,
              velocity_command, odrive_can.get_voltage(),
              odrive_can.get_time_since_heartbeat_ms(),
              odrive_can.get_shadow_count(ACTUATOR_AXIS), can_error);
-  log_file.close();
-  log_file = SD.open(log_name.c_str(), FILE_WRITE);
+  log_file.flush();
 
   Serial.printf(
       "ms: %d ec: %d wc: %d voltage: %.2f heartbeat: %d enc: %d can_error: "
@@ -133,6 +160,12 @@ void control_function() {
 }
 
 void setup() {
+  pinMode(BUTTON_UP, INPUT);
+  pinMode(BUTTON_DOWN, INPUT);
+  pinMode(BUTTON_LEFT, INPUT);
+  pinMode(BUTTON_RIGHT, INPUT);
+  pinMode(BUTTON_CENTER, INPUT);
+
   if (kWaitSerial) {
     while (!Serial) {}
   }
@@ -150,8 +183,7 @@ void setup() {
   log_file = SD.open(log_name.c_str(), FILE_WRITE);
   Log.begin(LOG_LEVEL_NOTICE, &log_file, false);
   Log.notice("Initialization Started - Model: %d " CR, MODEL_NUMBER);
-  log_file.close();
-  log_file = SD.open(log_name.c_str(), FILE_WRITE);
+  log_file.flush();
 
   // Establish odrive connection
   odrive_can.init(&odrive_can_parse);
