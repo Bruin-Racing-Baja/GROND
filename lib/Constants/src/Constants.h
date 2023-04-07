@@ -18,6 +18,11 @@ const int ESTOP_IN_PIN = 33;
 const int ESTOP_OUT_PIN = 32;
 const int LED_1_PIN = 28;
 const int LED_2_PIN = 29;
+const int BUTTON_UP_PIN = 28;
+const int BUTTON_LEFT_PIN = 29;
+const int BUTTON_CENTER_PIN = 30;
+const int BUTTON_RIGHT_PIN = 31;
+const int BUTTON_DOWN_PIN = 32;
 
 // Physical constants
 const float ROTATIONS_PER_ENGINE_COUNT = 1.0 / 16;
@@ -31,10 +36,8 @@ const float SECONDARY_ROTATIONS_PER_WHEEL_COUNT =
 
 // Car-Indepenedent Constants
 const int LOG_LEVEL = 4;
-
-// Car-Independent Constants
-const int CONTROL_FUNCTION_INTERVAL = 1e5;  //microseconds
-const int ODRIVE_BAUD_RATE = 115200;        //hz
+const int CONTROL_FUNCTION_INTERVAL_US = 1e5;  //microseconds
+const int ODRIVE_BAUD_RATE = 115200;           //hz
 const int ACTUATOR_AXIS = 1;
 
 // Odrive constants
@@ -48,5 +51,12 @@ const int ODRIVE_VELOCITY_CONTROL_STATE = 8;
 
 // Unit conversions
 const int MICROSECONDS_PER_SECOND = 1e6;
+
+// GROND Software modes
+const int OPERATING_MODE = 0;
+const int SERIAL_DEBUG_MODE = 1;
+
+// Serial debug settings
+const int SERIAL_DEBUGGER_INTERVAL_US = 100000;
 
 #endif

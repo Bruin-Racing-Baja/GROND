@@ -1,92 +1,52 @@
+/* GROND */
+
 #include <Arduino.h>
 #include <FlexCAN_T4.h>
-
-// Libraries
 // clang-format off
 #include <SPI.h>
 // clang-format on
-#include <ArduinoLog.h>
 #include <HardwareSerial.h>
 #include <SD.h>
 
 // Classes
 #include <Actuator.h>
 #include <Constants.h>
-#include <Odrive.h>
 #include <OdriveCAN.h>
 
-/*
-Modes:
-0 - Normal Operation
-1 - Debug Mode [Serial]
-*/
-static constexpr int kMode = 0;
-
 // Startup Settings
+static constexpr int kMode = OPERATING_MODE;
 static constexpr int kWaitSerial = 1;
 static constexpr int kHomeOnStartup = 1;  // Controls index search and home
 
 // Object Declarations
-Odrive odrive(Serial1);
 OdriveCAN odrive_can;
 Actuator actuator(&odrive_can);
 IntervalTimer timer;
 File log_file;
-
-// File-Scope Variable Declarations
 String log_name;
-
-// Geartooth counts
-volatile unsigned long eg_count = 0;
-volatile unsigned long wl_count = 0;
-
-// Control Function Variables
-u_int32_t last_exec_us;
-long int last_eg_count = 0;
-long int last_wl_count = 0;
 
 // Parses CAN messages when received
 void odrive_can_parse(const CAN_message_t& msg) {
   odrive_can.parse_message(msg);
 }
 
-static constexpr int kSerialDebuggerIntervalUs = 100000;
-void serial_debugger() {
-  u_int32_t start_us = micros();
-  u_int32_t dt_us = start_us - last_exec_us;
+// Control Function Variables
+u_int32_t last_exec_us;
+long int last_eg_count = 0;
+long int last_wl_count = 0;
+float desired_speed = 0;
+int last_left_button = 0;
+int last_right_button = 0;
+int cycles_per_log_flush = 10;
+int last_log_flush = 0;
+bool pressed = false;
+bool flushed = false;
 
-  noInterrupts();
-  long current_eg_count = eg_count;
-  long current_wl_count = wl_count;
-  interrupts();
+// Geartooth counts
+volatile unsigned long eg_count = 0;
+volatile unsigned long wl_count = 0;
 
-  // First, calculate rpms
-  float eg_rpm = (current_eg_count - last_eg_count) *
-                 ROTATIONS_PER_ENGINE_COUNT / dt_us * MICROSECONDS_PER_SECOND *
-                 60.0;
-  float wl_rpm = (current_wl_count - last_wl_count) *
-                 ROTATIONS_PER_WHEEL_COUNT / dt_us * MICROSECONDS_PER_SECOND *
-                 60.0;
-
-  last_eg_count = current_eg_count;
-  last_wl_count = current_wl_count;
-  last_exec_us = start_us;
-
-  Serial.printf("ms: %d ec: %d wc: %d ec_rpm: %f wc_rpm %f\n", millis(),
-                current_eg_count, current_wl_count, eg_rpm, wl_rpm);
-  // int can_error = 0;
-  // can_error = (can_error << 1) & odrive_can.request_vbus_voltage();
-  // can_error = (can_error << 1) & odrive_can.request_motor_error(1);
-  // can_error = (can_error << 1) & odrive_can.request_encoder_count(1);
-  // Serial.printf(
-  //     "ms: %d ec: %d wc: %d voltage: %.2f heartbeat: %d enc: %d can_error: "
-  //     "%d\n",
-  //     millis(), current_eg_count, current_wl_count, odrive_can.get_voltage(),
-  //     odrive_can.get_time_since_heartbeat_ms(), odrive_can.get_shadow_count(1),
-  //     can_error);
-}
-
-// Control Function ඞ
+//ඞ
 void control_function() {
   u_int32_t start_us = micros();
   u_int32_t dt_us = start_us - last_exec_us;
@@ -111,40 +71,110 @@ void control_function() {
   float error = TARGET_RPM - eg_rpm;
   float velocity_command = error * PROPORTIONAL_GAIN;
 
+  int left_button = !digitalRead(BUTTON_LEFT_PIN);
+  int right_button = !digitalRead(BUTTON_RIGHT_PIN);
+  int center_button = !digitalRead(BUTTON_CENTER_PIN);
+  int down_button = !digitalRead(BUTTON_DOWN_PIN);
+  if (left_button && !last_left_button) {
+    desired_speed -= 1;
+    pressed = true;
+  } else if (right_button && !last_right_button) {
+    desired_speed += 1;
+    pressed = true;
+  }
+  if (center_button) {
+    desired_speed = 0;
+    pressed = true;
+  }
+  if (last_log_flush == cycles_per_log_flush) {
+    log_file.flush();
+    odrive_can.odrive_can.reset();
+    odrive_can.init(&odrive_can_parse);
+    last_log_flush = 0;
+    flushed = true;
+  }
+
+  last_left_button = left_button;
+  last_right_button = right_button;
+  velocity_command = desired_speed;
+
   actuator.update_speed(velocity_command);
 
   u_int32_t stop_us = micros();
   int can_error = 0;
-  can_error = (can_error << 1) & odrive_can.request_vbus_voltage();
-  can_error = (can_error << 1) & odrive_can.request_motor_error(1);
-  can_error = (can_error << 1) & odrive_can.request_encoder_count(1);
-  Log.notice("%d, %d, %F, %F, %d, %d, %F, %F, %d, %d, %f  %d \n" CR, start_us,
-             stop_us, eg_rpm, wl_rpm, current_eg_count, current_wl_count, error,
-             velocity_command, odrive_can.get_voltage(),
-             odrive_can.get_time_since_heartbeat_ms(),
-             odrive_can.get_shadow_count(1), can_error);
-  log_file.close();
-  log_file = SD.open(log_name.c_str(), FILE_WRITE);
+  can_error += !!odrive_can.request_vbus_voltage();
+  can_error += !!odrive_can.request_motor_error(ACTUATOR_AXIS);
+  can_error += !!odrive_can.request_encoder_count(ACTUATOR_AXIS);
+  can_error += !!odrive_can.request_iq(ACTUATOR_AXIS);
 
+  last_log_flush++;
   Serial.printf(
-      "ms: %d ec: %d wc: %d voltage: %.2f heartbeat: %d enc: %d can_error: "
-      "%d axis_state: %d axis_error: %d odrive_velocity_estimate: %f eg_rpm: "
-      "%f vel_cmd: %f \n",
-      millis(), current_eg_count, current_wl_count, odrive_can.get_voltage(),
-      odrive_can.get_time_since_heartbeat_ms(), odrive_can.get_shadow_count(1),
-      can_error, odrive_can.get_axis_state(1), odrive_can.get_axis_error(1),
-      odrive_can.get_vel_estimate(1), eg_rpm, velocity_command);
+      "ms: %d, voltage: %.2f, current: %.5f, iq_set: %.5f, iq_m: %.5f, "
+      "heartbeat: %d, enc: %d, "
+      "can_error: %d, vel_cmd: "
+      "%.2f, flushed: %d\n",
+      millis(), odrive_can.get_voltage(), odrive_can.get_current(),
+      odrive_can.get_iq_setpoint(ACTUATOR_AXIS),
+      odrive_can.get_iq_measured(ACTUATOR_AXIS),
+      odrive_can.get_time_since_heartbeat_ms(),
+      odrive_can.get_shadow_count(ACTUATOR_AXIS), can_error, velocity_command,
+      flushed);
 
-  //need current state, current velocity,
+  log_file.printf(
+      "%d, %.2f, %d, %.2f, %.2f, %.2f, %.2f, %d, %d, %d, %.5f, %d, %d, %d, "
+      "%.5f, %d, %d, %.5f, %d, %d, %d\n",
+      dt_us, odrive_can.get_voltage(), odrive_can.get_time_since_heartbeat_ms(),
+      wl_rpm, eg_rpm, TARGET_RPM, velocity_command,
+      odrive_can.get_shadow_count(ACTUATOR_AXIS), -1, -1,
+      odrive_can.get_iq_measured(ACTUATOR_AXIS), flushed, current_wl_count,
+      current_eg_count, odrive_can.get_iq_setpoint(ACTUATOR_AXIS), start_us,
+      stop_us, odrive_can.get_current(),
+      odrive_can.get_axis_error(ACTUATOR_AXIS),
+      odrive_can.get_motor_error(ACTUATOR_AXIS),
+      odrive_can.get_encoder_error(ACTUATOR_AXIS));
+
+  pressed = false;
+  flushed = false;
+}
+
+void serial_debugger() {
+  u_int32_t start_us = micros();
+  u_int32_t dt_us = start_us - last_exec_us;
+
+  noInterrupts();
+  long current_eg_count = eg_count;
+  long current_wl_count = wl_count;
+  interrupts();
+
+  float eg_rpm = (current_eg_count - last_eg_count) *
+                 ROTATIONS_PER_ENGINE_COUNT / dt_us * MICROSECONDS_PER_SECOND *
+                 60.0;
+  float wl_rpm = (current_wl_count - last_wl_count) *
+                 ROTATIONS_PER_WHEEL_COUNT / dt_us * MICROSECONDS_PER_SECOND *
+                 60.0;
+
+  last_eg_count = current_eg_count;
+  last_wl_count = current_wl_count;
+  last_exec_us = start_us;
+
+  Serial.printf("ms: %d ec: %d wc: %d ec_rpm: %f wc_rpm %f\n", millis(),
+                current_eg_count, current_wl_count, eg_rpm, wl_rpm);
 }
 
 void setup() {
+  pinMode(BUTTON_UP_PIN, INPUT);
+  pinMode(BUTTON_DOWN_PIN, INPUT);
+  pinMode(BUTTON_LEFT_PIN, INPUT);
+  pinMode(BUTTON_RIGHT_PIN, INPUT);
+  pinMode(BUTTON_CENTER_PIN, INPUT);
+
   if (kWaitSerial) {
     while (!Serial) {}
   }
 
   // Log file determination and initialization
-  SD.begin(BUILTIN_SDCARD);
+  SD.sdfs.begin(SdioConfig(DMA_SDIO));
+
   int log_file_number = 0;
   while (SD.exists(("log_" + String(log_file_number) + ".txt").c_str())) {
     log_file_number++;
@@ -154,39 +184,38 @@ void setup() {
   // Begin log and save first line
   Serial.println("Logging at: " + log_name);
   log_file = SD.open(log_name.c_str(), FILE_WRITE);
-  Log.begin(LOG_LEVEL_NOTICE, &log_file, false);
-  Log.notice("Initialization Started - Model: %d " CR, MODEL_NUMBER);
-  log_file.close();
-  log_file = SD.open(log_name.c_str(), FILE_WRITE);
+  //Log.begin(LOG_LEVEL_NOTICE, &log_file, false);
+  log_file.printf("Initialization Started - Model: %d ", MODEL_NUMBER);
+  log_file.flush();
 
-  actuator.init();
+  // Establish odrive connection
   odrive_can.init(&odrive_can_parse);
+  actuator.init();
 
-  Serial.print("Index search: ");
-  actuator.encoder_index_search() ? Serial.println("Complete")
-                                  : Serial.println("Failed");
+  // Home actuator
+  if (kHomeOnStartup) {
+    Serial.print("Index search: ");
+    actuator.encoder_index_search() ? Serial.println("Complete")
+                                    : Serial.println("Failed");
+  }
 
-  // Create interrupts to count gear teeth
+  // Attach wl, eg interrupts
   attachInterrupt(
       EG_INTERRUPT_PIN, []() { ++eg_count; }, FALLING);
   attachInterrupt(
       WL_INTERRUPT_PIN, []() { ++wl_count; }, RISING);
 
-  // Attach correct interrupt based on the desired mode
-  Serial.print("Attaching timer interrupt: ");
+  // Attach operating mode interrupt
+  Serial.print("Attaching interrupt mode " + String(kMode));
   last_exec_us = micros();
   switch (kMode) {
-    switch (kMode) {
-      case 0:
-        odrive_can.set_state(1, 8);
-        timer.begin(control_function, CONTROL_FUNCTION_INTERVAL);
-        break;
-      case 1:
-        timer.begin(serial_debugger, kSerialDebuggerIntervalUs);
-        break;
-        timer.begin(serial_debugger, kSerialDebuggerIntervalUs);
-        break;
-    }
+    case OPERATING_MODE:
+      odrive_can.set_state(ACTUATOR_AXIS, ODRIVE_VELOCITY_CONTROL_STATE);
+      timer.begin(control_function, CONTROL_FUNCTION_INTERVAL_US);
+      break;
+    case SERIAL_DEBUG_MODE:
+      timer.begin(serial_debugger, SERIAL_DEBUGGER_INTERVAL_US);
+      break;
   }
 }
 void loop() {}
