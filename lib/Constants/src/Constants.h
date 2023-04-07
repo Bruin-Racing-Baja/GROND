@@ -18,6 +18,11 @@ const int ESTOP_IN_PIN = 33;
 const int ESTOP_OUT_PIN = 32;
 const int LED_1_PIN = 28;
 const int LED_2_PIN = 29;
+const int BUTTON_UP_PIN = 28;
+const int BUTTON_LEFT_PIN = 29;
+const int BUTTON_CENTER_PIN = 30;
+const int BUTTON_RIGHT_PIN = 31;
+const int BUTTON_DOWN_PIN = 32;
 
 // Physical constants
 const float ROTATIONS_PER_ENGINE_COUNT = 1.0 / 16;
