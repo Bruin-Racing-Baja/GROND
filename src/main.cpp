@@ -89,7 +89,10 @@ void serial_debugger() {
 float desired_speed = 0;
 int last_left_button = 0;
 int last_right_button = 0;
-
+int cycles_per_log_flush = 10;
+int last_log_flush = 0;
+bool pressed = false;
+bool flushed = false;
 void control_function() {
   u_int32_t start_us = micros();
   u_int32_t dt_us = start_us - last_exec_us;
@@ -119,11 +122,14 @@ void control_function() {
   int center_button = !digitalRead(BUTTON_CENTER);
   if (left_button && !last_left_button) {
     desired_speed -= 1;
+    pressed = true;
   } else if (right_button && !last_right_button) {
     desired_speed += 1;
+    pressed = true;
   }
   if (center_button) {
     desired_speed = 0;
+    pressed = true;
   }
   last_left_button = left_button;
   last_right_button = right_button;
@@ -133,30 +139,44 @@ void control_function() {
 
   u_int32_t stop_us = micros();
   int can_error = 0;
-  can_error = (can_error << 1) | !!odrive_can.request_vbus_voltage();
-  can_error =
-      (can_error << 1) | !!odrive_can.request_motor_error(ACTUATOR_AXIS);
-  can_error =
-      (can_error << 1) | !!odrive_can.request_encoder_count(ACTUATOR_AXIS);
-  Log.notice("%d, %d, %F, %F, %d, %d, %F, %F, %d, %d, %d, %d\n", start_us,
-             stop_us, eg_rpm, wl_rpm, current_eg_count, current_wl_count, error,
-             velocity_command, odrive_can.get_voltage(),
-             odrive_can.get_time_since_heartbeat_ms(),
-             odrive_can.get_shadow_count(ACTUATOR_AXIS), can_error);
-  log_file.flush();
-
+  can_error += !!odrive_can.request_vbus_voltage();
+  can_error += !!odrive_can.request_motor_error(ACTUATOR_AXIS);
+  can_error += !!odrive_can.request_encoder_count(ACTUATOR_AXIS);
+  log_file.printf("%d, %d, %F, %F, %d, %d, %F, %F, %d, %d, %d, %d\n", start_us,
+                  stop_us, eg_rpm, wl_rpm, current_eg_count, current_wl_count,
+                  error, velocity_command, odrive_can.get_voltage(),
+                  odrive_can.get_time_since_heartbeat_ms(),
+                  odrive_can.get_shadow_count(ACTUATOR_AXIS), can_error);
+  if (last_log_flush == cycles_per_log_flush) {
+    log_file.flush();
+    last_log_flush = 0;
+    flushed = true;
+  }
+  last_log_flush++;
+  Serial.printf(
+      "ms: %d, voltage: %.2f, heartbeat: %d, enc: %d, can_error: %d, vel_cmd: "
+      "%.2f, flushed: %d\n",
+      millis(), odrive_can.get_voltage(),
+      odrive_can.get_time_since_heartbeat_ms(),
+      odrive_can.get_shadow_count(ACTUATOR_AXIS), can_error, velocity_command,
+      flushed);
+  /*
   Serial.printf(
       "ms: %d ec: %d wc: %d voltage: %.2f heartbeat: %d enc: %d can_error: "
-      "%d axis_state: %d axis_error: %d odrive_velocity_estimate: %f eg_rpm: "
-      "%f vel_cmd: %f \n",
+      "%d axis_state: %d axis_error: %d odrive_velocity_estimate: %f "
+      "eg_rpm: "
+      "%f vel_cmd: %f (flush: %d pressed: %d\n",
       millis(), current_eg_count, current_wl_count, odrive_can.get_voltage(),
       odrive_can.get_time_since_heartbeat_ms(),
       odrive_can.get_shadow_count(ACTUATOR_AXIS), can_error,
       odrive_can.get_axis_state(ACTUATOR_AXIS),
       odrive_can.get_axis_error(ACTUATOR_AXIS),
-      odrive_can.get_vel_estimate(ACTUATOR_AXIS), eg_rpm, velocity_command);
+      odrive_can.get_vel_estimate(ACTUATOR_AXIS), eg_rpm, velocity_command,
+      last_log_flush == 1, pressed);
+      */
 
-  //need current state, current velocity,
+  pressed = false;
+  flushed = false;
 }
 
 void setup() {
@@ -181,8 +201,8 @@ void setup() {
   // Begin log and save first line
   Serial.println("Logging at: " + log_name);
   log_file = SD.open(log_name.c_str(), FILE_WRITE);
-  Log.begin(LOG_LEVEL_NOTICE, &log_file, false);
-  Log.notice("Initialization Started - Model: %d " CR, MODEL_NUMBER);
+  //Log.begin(LOG_LEVEL_NOTICE, &log_file, false);
+  log_file.printf("Initialization Started - Model: %d " CR, MODEL_NUMBER);
   log_file.flush();
 
   // Establish odrive connection
