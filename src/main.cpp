@@ -165,27 +165,17 @@ void control_function() {
       odrive_can.get_shadow_count(ACTUATOR_AXIS), can_error, velocity_command,
       flushed);
   log_file.printf(
-      "ms: %d, voltage: %.2f, heartbeat: %d, enc: %d, can_error: %d, vel_cmd: "
-      "%.2f, flushed: %d\n",
-      millis(), odrive_can.get_voltage(),
-      odrive_can.get_time_since_heartbeat_ms(),
-      odrive_can.get_shadow_count(ACTUATOR_AXIS), can_error, velocity_command,
-      flushed);
-  /*
-  Serial.printf(
-      "ms: %d ec: %d wc: %d voltage: %.2f heartbeat: %d enc: %d can_error: "
-      "%d axis_state: %d axis_error: %d odrive_velocity_estimate: %f "
-      "eg_rpm: "
-      "%f vel_cmd: %f (flush: %d pressed: %d\n",
-      millis(), current_eg_count, current_wl_count, odrive_can.get_voltage(),
-      odrive_can.get_time_since_heartbeat_ms(),
-      odrive_can.get_shadow_count(ACTUATOR_AXIS), can_error,
-      odrive_can.get_axis_state(ACTUATOR_AXIS),
+      "%d, %.2f, %d, %.2f, %.2f, %.2f, %.2f, %d, %d, %d, %.5f, %d, %d, %d, "
+      "%.5f, %d, %d, %.5f, %d, %d, %d\n",
+      dt_us, odrive_can.get_voltage(), odrive_can.get_time_since_heartbeat_ms(),
+      wl_rpm, eg_rpm, TARGET_RPM, velocity_command,
+      odrive_can.get_shadow_count(ACTUATOR_AXIS), -1, -1,
+      odrive_can.get_iq_measured(ACTUATOR_AXIS), flushed, current_wl_count,
+      current_eg_count, odrive_can.get_iq_setpoint(ACTUATOR_AXIS), start_us,
+      stop_us, odrive_can.get_current(),
       odrive_can.get_axis_error(ACTUATOR_AXIS),
-      odrive_can.get_vel_estimate(ACTUATOR_AXIS), eg_rpm, velocity_command,
-      last_log_flush == 1, pressed);
-      */
-
+      odrive_can.get_motor_error(ACTUATOR_AXIS),
+      odrive_can.get_encoder_error(ACTUATOR_AXIS));
   pressed = false;
   flushed = false;
 }
