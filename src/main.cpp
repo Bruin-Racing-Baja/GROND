@@ -231,7 +231,7 @@ void setup() {
       WL_INTERRUPT_PIN, []() { ++wl_count; }, RISING);
 
   // Attach operating mode interrupt
-  Serial.print("Attaching interrupt mode " + String(kMode));
+  Serial.print("Attaching interrupt mode " + String(kMode) + "\n");
   last_exec_us = micros();
   switch (kMode) {
     case OPERATING_MODE:
