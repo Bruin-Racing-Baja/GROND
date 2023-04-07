@@ -5,7 +5,6 @@
 // clang-format off
 #include <SPI.h>
 // clang-format on
-#include <ArduinoLog.h>
 #include <HardwareSerial.h>
 #include <SD.h>
 
@@ -142,11 +141,7 @@ void control_function() {
   can_error += !!odrive_can.request_vbus_voltage();
   can_error += !!odrive_can.request_motor_error(ACTUATOR_AXIS);
   can_error += !!odrive_can.request_encoder_count(ACTUATOR_AXIS);
-  log_file.printf("%d, %d, %F, %F, %d, %d, %F, %F, %d, %d, %d, %d\n", start_us,
-                  stop_us, eg_rpm, wl_rpm, current_eg_count, current_wl_count,
-                  error, velocity_command, odrive_can.get_voltage(),
-                  odrive_can.get_time_since_heartbeat_ms(),
-                  odrive_can.get_shadow_count(ACTUATOR_AXIS), can_error);
+
   if (last_log_flush == cycles_per_log_flush) {
     log_file.flush();
     last_log_flush = 0;
@@ -154,6 +149,13 @@ void control_function() {
   }
   last_log_flush++;
   Serial.printf(
+      "ms: %d, voltage: %.2f, heartbeat: %d, enc: %d, can_error: %d, vel_cmd: "
+      "%.2f, flushed: %d\n",
+      millis(), odrive_can.get_voltage(),
+      odrive_can.get_time_since_heartbeat_ms(),
+      odrive_can.get_shadow_count(ACTUATOR_AXIS), can_error, velocity_command,
+      flushed);
+  log_file.printf(
       "ms: %d, voltage: %.2f, heartbeat: %d, enc: %d, can_error: %d, vel_cmd: "
       "%.2f, flushed: %d\n",
       millis(), odrive_can.get_voltage(),
@@ -191,7 +193,8 @@ void setup() {
   }
 
   // Log file determination and initialization
-  SD.begin(BUILTIN_SDCARD);
+  SD.sdfs.begin(SdioConfig(DMA_SDIO));
+
   int log_file_number = 0;
   while (SD.exists(("log_" + String(log_file_number) + ".txt").c_str())) {
     log_file_number++;
@@ -202,7 +205,7 @@ void setup() {
   Serial.println("Logging at: " + log_name);
   log_file = SD.open(log_name.c_str(), FILE_WRITE);
   //Log.begin(LOG_LEVEL_NOTICE, &log_file, false);
-  log_file.printf("Initialization Started - Model: %d " CR, MODEL_NUMBER);
+  log_file.printf("Initialization Started - Model: %d ", MODEL_NUMBER);
   log_file.flush();
 
   // Establish odrive connection
