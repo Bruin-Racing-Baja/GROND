@@ -119,6 +119,7 @@ void control_function() {
   int left_button = !digitalRead(BUTTON_LEFT);
   int right_button = !digitalRead(BUTTON_RIGHT);
   int center_button = !digitalRead(BUTTON_CENTER);
+  int down_button = !digitalRead(BUTTON_DOWN);
   if (left_button && !last_left_button) {
     desired_speed -= 1;
     pressed = true;
@@ -130,6 +131,14 @@ void control_function() {
     desired_speed = 0;
     pressed = true;
   }
+  if (last_log_flush == cycles_per_log_flush) {
+    log_file.flush();
+    odrive_can.odrive_can.reset();
+    odrive_can.init(&odrive_can_parse);
+    last_log_flush = 0;
+    flushed = true;
+  }
+
   last_left_button = left_button;
   last_right_button = right_button;
   velocity_command = desired_speed;
@@ -141,17 +150,17 @@ void control_function() {
   can_error += !!odrive_can.request_vbus_voltage();
   can_error += !!odrive_can.request_motor_error(ACTUATOR_AXIS);
   can_error += !!odrive_can.request_encoder_count(ACTUATOR_AXIS);
+  can_error += !!odrive_can.request_iq(ACTUATOR_AXIS);
 
-  if (last_log_flush == cycles_per_log_flush) {
-    log_file.flush();
-    last_log_flush = 0;
-    flushed = true;
-  }
   last_log_flush++;
   Serial.printf(
-      "ms: %d, voltage: %.2f, heartbeat: %d, enc: %d, can_error: %d, vel_cmd: "
+      "ms: %d, voltage: %.2f, current: %.5f, iq_set: %.5f, iq_m: %.5f, "
+      "heartbeat: %d, enc: %d, "
+      "can_error: %d, vel_cmd: "
       "%.2f, flushed: %d\n",
-      millis(), odrive_can.get_voltage(),
+      millis(), odrive_can.get_voltage(), odrive_can.get_current(),
+      odrive_can.get_iq_setpoint(ACTUATOR_AXIS),
+      odrive_can.get_iq_measured(ACTUATOR_AXIS),
       odrive_can.get_time_since_heartbeat_ms(),
       odrive_can.get_shadow_count(ACTUATOR_AXIS), can_error, velocity_command,
       flushed);

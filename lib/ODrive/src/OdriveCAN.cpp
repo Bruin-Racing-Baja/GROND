@@ -91,7 +91,7 @@ void OdriveCAN::parse_message(const CAN_message_t& msg) {
       break;
     case CAN_GET_VBUS_VOLTAGE:
       memcpy(&vbus_voltage, msg.buf, 4);
-      memcpy(&vbus_current, msg.buf, 4);
+      memcpy(&vbus_current, msg.buf + 4, 4);
       break;
   }
 }
