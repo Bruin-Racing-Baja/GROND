@@ -16,7 +16,7 @@
 
 // Startup Settings
 static constexpr int kMode = OPERATING_MODE;
-static constexpr int kWaitSerial = 1;
+static constexpr int kWaitSerial = 0;
 static constexpr int kHomeOnStartup = 1;  // Controls index search and home
 
 // Object Declarations
@@ -115,6 +115,10 @@ void control_function() {
   can_error += !!odrive_can.request_iq(ACTUATOR_AXIS);
 
   last_log_flush++;
+
+  if (fabs(odrive_can.get_iq_measured(ACTUATOR_AXIS)) > 20) {
+    digitalWrite(LED_PINS[0], 1);
+  }
   Serial.printf(
       "ms: %d, vltg: %.2f, crnt: %.2f, iq_set: %.2f, iq_m: %.2f, "
       "hrt: %d, enc: %d, "
@@ -128,7 +132,7 @@ void control_function() {
       flushed, wl_rpm, eg_rpm, current_wl_count, current_eg_count);
 
   log_file.printf(
-      "%d, %.2f, %d, %.2f, %.2f, %.2f, %.2f, %d, %d, %d, %.5f, %d, %d, %d, "
+      "%d, %.2f, %d, %.2f, %.2f, %d, %.2f, %d, %d, %d, %.5f, %d, %d, %d, "
       "%.5f, %d, %d, %.5f, %d, %d, %d\n",
       dt_us, odrive_can.get_voltage(), odrive_can.get_time_since_heartbeat_ms(),
       wl_rpm, eg_rpm, TARGET_RPM, velocity_command,
@@ -172,6 +176,9 @@ void setup() {
   for (int i = 0; i < 5; i++) {
     pinMode(BUTTON_PINS[i], INPUT);
   }
+  for (int i = 0; i < 4; i++) {
+    pinMode(LED_PINS[i], OUTPUT);
+  }
 
   if (kWaitSerial) {
     while (!Serial) {}
@@ -211,7 +218,7 @@ void setup() {
     getTimeString(timestamp);
 
     Serial.printf("Logging at: %s\n", log_name);
-    log_file.printf("Initialization Started (%s) - Model: %d ", timestamp,
+    log_file.printf("Initialization Started (%s) - Model: %d\n", timestamp,
                     MODEL_NUMBER);
     log_file.flush();
   } else {

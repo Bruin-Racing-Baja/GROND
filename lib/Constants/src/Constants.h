@@ -2,8 +2,8 @@
 #define constants_h
 
 // COMMONLY CHANGED PARAMETERS
-const int TARGET_RPM = 2400;
-const float PROPORTIONAL_GAIN = 0.01;
+const int TARGET_RPM = 3500;
+const float PROPORTIONAL_GAIN = 0.016;
 const float EG_RPM_BUTTERWORTH_CONSTANT = 0.4;
 const int VEL_LIMIT = 10;
 #define model 21
@@ -24,12 +24,13 @@ const int BUTTON_CENTER = 2;
 const int BUTTON_RIGHT = 3;
 const int BUTTON_DOWN = 4;
 const int BUTTON_PINS[5] = {28, 29, 30, 31, 32};
+const int LED_PINS[5] = {2, 3, 4, 5};
 
 // Physical constants
 const float ROTATIONS_PER_ENGINE_COUNT = 1.0 / 16;
 const float ROTATIONS_PER_WHEEL_COUNT = 1.0 / 12;  // Actual rotation of wheel
 const float SECONDARY_ROTATIONS_PER_WHEEL_COUNT =
-    3.0 / 4;  //Rotation of secondary
+    1.0 / ((45 / 17) * (57 / 18));  //Rotation of secondary
 
 #elif model == 22
 #define dancing 13
