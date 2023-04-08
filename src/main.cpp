@@ -98,8 +98,6 @@ void control_function() {
   }
   if (last_log_flush == cycles_per_log_flush) {
     log_file.flush();
-    odrive_can.odrive_can.reset();
-    odrive_can.init(&odrive_can_parse);
     last_log_flush = 0;
     flushed = true;
   }
@@ -245,6 +243,7 @@ void setup() {
   last_exec_us = micros();
   switch (kMode) {
     case OPERATING_MODE:
+      odrive_can.set_input_vel(ACTUATOR_AXIS, 0, 0);
       odrive_can.set_state(ACTUATOR_AXIS, ODRIVE_VELOCITY_CONTROL_STATE);
       timer.begin(control_function, CONTROL_FUNCTION_INTERVAL_US);
       break;
