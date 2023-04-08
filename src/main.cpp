@@ -7,6 +7,7 @@
 // clang-format on
 #include <HardwareSerial.h>
 #include <SD.h>
+#include <TimeLib.h>
 
 // Classes
 #include <Actuator.h>
@@ -23,7 +24,6 @@ OdriveCAN odrive_can;
 Actuator actuator(&odrive_can);
 IntervalTimer timer;
 File log_file;
-String log_name;
 
 // Parses CAN messages when received
 void odrive_can_parse(const CAN_message_t& msg) {
@@ -41,10 +41,20 @@ int cycles_per_log_flush = 10;
 int last_log_flush = 0;
 bool pressed = false;
 bool flushed = false;
+bool sd_init = false;
 
 // Geartooth counts
 volatile unsigned long eg_count = 0;
 volatile unsigned long wl_count = 0;
+
+time_t getTeensy3Time() {
+  return Teensy3Clock.get();
+}
+
+void getTimeString(char* buf) {
+  sprintf(buf, "%04d-%02d-%02d %02d:%02d:%02d", year(), month(), day(), hour(),
+          minute(), second());
+}
 
 //ඞ
 void control_function() {
@@ -172,21 +182,46 @@ void setup() {
     while (!Serial) {}
   }
 
-  // Log file determination and initialization
-  SD.sdfs.begin(SdioConfig(DMA_SDIO));
-
-  int log_file_number = 0;
-  while (SD.exists(("log_" + String(log_file_number) + ".txt").c_str())) {
-    log_file_number++;
+  // Initialize clock
+  setSyncProvider(getTeensy3Time);
+  if (timeStatus() != timeSet) {
+    Serial.println("Failed to sync with RTC");
   }
-  log_name = "log_" + String(log_file_number) + ".txt";
 
-  // Begin log and save first line
-  Serial.println("Logging at: " + log_name);
-  log_file = SD.open(log_name.c_str(), FILE_WRITE);
-  //Log.begin(LOG_LEVEL_NOTICE, &log_file, false);
-  log_file.printf("Initialization Started - Model: %d ", MODEL_NUMBER);
-  log_file.flush();
+  // SD initialization
+  sd_init = SD.sdfs.begin(SdioConfig(DMA_SDIO));
+  if (!sd_init) {
+    Serial.println("SD failed to init");
+  }
+
+  // log file determination and initialization
+  // TODO skip log if SD failed?
+  char log_name[35];
+  sprintf(log_name, "log_%04d-%02d-%02d_%02d-%02d-%02d.txt", year(), month(),
+          day(), hour(), minute(), second());
+  if (SD.exists(log_name)) {
+    char log_name_duplicate[35];
+    int i = 1;
+    do {
+      sprintf(log_name_duplicate, "%.*s_%03d.txt", 23, log_name, i);
+      i++;
+    } while (SD.exists(log_name_duplicate));
+    strcpy(log_name, log_name_duplicate);
+  }
+
+  log_file = SD.open(log_name, FILE_WRITE);
+
+  if (log_file) {
+    char timestamp[25];
+    getTimeString(timestamp);
+
+    Serial.printf("Logging at: %s\n", log_name);
+    log_file.printf("Initialization Started (%s) - Model: %d ", timestamp,
+                    MODEL_NUMBER);
+    log_file.flush();
+  } else {
+    Serial.printf("Failed to open log file: %s\n", log_name);
+  }
 
   // Establish odrive connection
   odrive_can.init(&odrive_can_parse);
@@ -206,7 +241,7 @@ void setup() {
       WL_INTERRUPT_PIN, []() { ++wl_count; }, RISING);
 
   // Attach operating mode interrupt
-  Serial.print("Attaching interrupt mode " + String(kMode));
+  Serial.print("Attaching interrupt mode " + String(kMode) + "\n");
   last_exec_us = micros();
   switch (kMode) {
     case OPERATING_MODE:
