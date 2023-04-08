@@ -35,8 +35,8 @@ u_int32_t last_exec_us;
 long int last_eg_count = 0;
 long int last_wl_count = 0;
 float desired_speed = 0;
-int last_left_button = 0;
-int last_right_button = 0;
+bool button_states[5];
+bool last_button_states[5];
 int cycles_per_log_flush = 10;
 int last_log_flush = 0;
 bool pressed = false;
@@ -81,20 +81,22 @@ void control_function() {
   float error = TARGET_RPM - eg_rpm;
   float velocity_command = error * PROPORTIONAL_GAIN;
 
-  int left_button = !digitalRead(BUTTON_LEFT_PIN);
-  int right_button = !digitalRead(BUTTON_RIGHT_PIN);
-  int center_button = !digitalRead(BUTTON_CENTER_PIN);
-  int down_button = !digitalRead(BUTTON_DOWN_PIN);
-  if (left_button && !last_left_button) {
+  for (int i = 0; i < 5; i++) {
+    button_states[i] = !digitalRead(BUTTON_PINS[i]);
+  }
+  if (button_states[BUTTON_LEFT] && !last_button_states[BUTTON_LEFT]) {
     desired_speed -= 1;
     pressed = true;
-  } else if (right_button && !last_right_button) {
+  } else if (button_states[BUTTON_RIGHT] && !last_button_states[BUTTON_RIGHT]) {
     desired_speed += 1;
     pressed = true;
   }
-  if (center_button) {
+  if (button_states[BUTTON_CENTER]) {
     desired_speed = 0;
     pressed = true;
+  }
+  for (int i = 0; i < 5; i++) {
+    last_button_states[i] = button_states[i];
   }
   if (last_log_flush == cycles_per_log_flush) {
     log_file.flush();
@@ -102,10 +104,7 @@ void control_function() {
     flushed = true;
   }
 
-  last_left_button = left_button;
-  last_right_button = right_button;
-  velocity_command = desired_speed;
-
+  //velocity_command = desired_speed;
   actuator.update_speed(velocity_command);
 
   u_int32_t stop_us = micros();
@@ -170,11 +169,9 @@ void serial_debugger() {
 }
 
 void setup() {
-  pinMode(BUTTON_UP_PIN, INPUT);
-  pinMode(BUTTON_DOWN_PIN, INPUT);
-  pinMode(BUTTON_LEFT_PIN, INPUT);
-  pinMode(BUTTON_RIGHT_PIN, INPUT);
-  pinMode(BUTTON_CENTER_PIN, INPUT);
+  for (int i = 0; i < 5; i++) {
+    pinMode(BUTTON_PINS[i], INPUT);
+  }
 
   if (kWaitSerial) {
     while (!Serial) {}
