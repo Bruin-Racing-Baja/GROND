@@ -116,16 +116,16 @@ void control_function() {
 
   last_log_flush++;
   Serial.printf(
-      "ms: %d, voltage: %.2f, current: %.5f, iq_set: %.5f, iq_m: %.5f, "
-      "heartbeat: %d, enc: %d, "
-      "can_error: %d, vel_cmd: "
-      "%.2f, flushed: %d\n",
+      "ms: %d, vltg: %.2f, crnt: %.2f, iq_set: %.2f, iq_m: %.2f, "
+      "hrt: %d, enc: %d, "
+      "can_er: %d, vel_cmd: "
+      "%.2f, flsh: %d, w_rpm: %.2f, e_rpm: %.2f, w_cnt: %d, e_cnt: %d\n",
       millis(), odrive_can.get_voltage(), odrive_can.get_current(),
       odrive_can.get_iq_setpoint(ACTUATOR_AXIS),
       odrive_can.get_iq_measured(ACTUATOR_AXIS),
       odrive_can.get_time_since_heartbeat_ms(),
       odrive_can.get_shadow_count(ACTUATOR_AXIS), can_error, velocity_command,
-      flushed);
+      flushed, wl_rpm, eg_rpm, current_wl_count, current_eg_count);
 
   log_file.printf(
       "%d, %.2f, %d, %.2f, %.2f, %.2f, %.2f, %d, %d, %d, %.5f, %d, %d, %d, "
