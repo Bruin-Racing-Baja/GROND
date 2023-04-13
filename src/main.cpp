@@ -8,6 +8,10 @@
 #include <HardwareSerial.h>
 #include <SD.h>
 #include <TimeLib.h>
+#include <log_message.pb.h>
+#include <pb.h>
+#include <pb_common.h>
+#include <pb_encode.h>
 
 // Classes
 #include <Actuator.h>
@@ -31,6 +35,9 @@ void odrive_can_parse(const CAN_message_t& msg) {
 }
 
 // Control Function Variables
+uint8_t buffer[256];
+LogMessage log_message;
+uint32_t cycle_count = 0;
 u_int32_t last_exec_us;
 long int last_eg_count = 0;
 long int last_wl_count = 0;
@@ -98,13 +105,8 @@ void control_function() {
   for (int i = 0; i < 5; i++) {
     last_button_states[i] = button_states[i];
   }
-  if (last_log_flush == cycles_per_log_flush) {
-    log_file.flush();
-    last_log_flush = 0;
-    flushed = true;
-  }
 
-  //velocity_command = desired_speed;
+  velocity_command = desired_speed;
   actuator.update_speed(velocity_command);
 
   u_int32_t stop_us = micros();
@@ -114,11 +116,6 @@ void control_function() {
   can_error += !!odrive_can.request_encoder_count(ACTUATOR_AXIS);
   can_error += !!odrive_can.request_iq(ACTUATOR_AXIS);
 
-  last_log_flush++;
-
-  if (fabs(odrive_can.get_iq_measured(ACTUATOR_AXIS)) > 20) {
-    digitalWrite(LED_PINS[0], 1);
-  }
   Serial.printf(
       "ms: %d, vltg: %.2f, crnt: %.2f, iq_set: %.2f, iq_m: %.2f, "
       "hrt: %d, enc: %d, "
@@ -131,21 +128,39 @@ void control_function() {
       odrive_can.get_shadow_count(ACTUATOR_AXIS), can_error, velocity_command,
       flushed, wl_rpm, eg_rpm, current_wl_count, current_eg_count);
 
-  log_file.printf(
-      "%d, %.2f, %d, %.2f, %.2f, %d, %.2f, %d, %d, %d, %.5f, %d, %d, %d, "
-      "%.5f, %d, %d, %.5f, %d, %d, %d\n",
-      dt_us, odrive_can.get_voltage(), odrive_can.get_time_since_heartbeat_ms(),
-      wl_rpm, eg_rpm, TARGET_RPM, velocity_command,
-      odrive_can.get_shadow_count(ACTUATOR_AXIS), -1, -1,
-      odrive_can.get_iq_measured(ACTUATOR_AXIS), flushed, current_wl_count,
-      current_eg_count, odrive_can.get_iq_setpoint(ACTUATOR_AXIS), start_us,
-      stop_us, odrive_can.get_current(),
-      odrive_can.get_axis_error(ACTUATOR_AXIS),
-      odrive_can.get_motor_error(ACTUATOR_AXIS),
-      odrive_can.get_encoder_error(ACTUATOR_AXIS));
+  log_message.control_cycle_start_us = start_us;
+  log_message.control_cycle_stop_us = stop_us;
+  log_message.control_cycle_dt_us = dt_us;
+  log_message.control_cycle_dt_us = dt_us;
+  log_message.wheel_rpm = wl_rpm;
+  log_message.engine_rpm = eg_rpm;
+  log_message.engine_count = current_eg_count;
+  log_message.wheel_count = current_wl_count;
+  log_message.target_rpm = TARGET_RPM;
+  log_message.velocity_command = velocity_command;
+  log_message.last_heartbeat_ms = odrive_can.get_time_since_heartbeat_ms();
+  log_message.axis_error = odrive_can.get_axis_error(ACTUATOR_AXIS);
+  log_message.motor_error = odrive_can.get_motor_error(ACTUATOR_AXIS);
+  log_message.encoder_error = odrive_can.get_encoder_error(ACTUATOR_AXIS);
+  log_message.voltage = odrive_can.get_voltage();
+  log_message.iq_measured = odrive_can.get_iq_measured(ACTUATOR_AXIS);
+  log_message.iq_setpoint = odrive_can.get_iq_setpoint(ACTUATOR_AXIS);
+  log_message.odrive_current = odrive_can.get_current();
+  log_message.inbound_estop = false;
+  log_message.outbound_estop = false;
+  log_message.shadow_count = odrive_can.get_shadow_count(ACTUATOR_AXIS);
 
-  pressed = false;
-  flushed = false;
+  pb_ostream_t ostream = pb_ostream_from_buffer(buffer, sizeof(buffer));
+  pb_encode(&ostream, &LogMessage_msg, &log_message);
+  size_t message_length = ostream.bytes_written;
+  log_file.write(buffer, message_length);
+
+  if (cycle_count % cycles_per_log_flush == 0) {
+    log_file.flush();
+    digitalToggle(LED_PINS[32]);
+  }
+
+  cycle_count++;
 }
 
 void serial_debugger() {
@@ -193,6 +208,7 @@ void setup() {
   // SD initialization
   sd_init = SD.sdfs.begin(SdioConfig(DMA_SDIO));
   if (!sd_init) {
+    digitalWrite(LED_PINS[0], HIGH);
     Serial.println("SD failed to init");
   }
 
@@ -218,10 +234,8 @@ void setup() {
     getTimeString(timestamp);
 
     Serial.printf("Logging at: %s\n", log_name);
-    log_file.printf("Initialization Started (%s) - Model: %d\n", timestamp,
-                    MODEL_NUMBER);
-    log_file.flush();
   } else {
+    digitalWrite(LED_PINS[0], HIGH);
     Serial.printf("Failed to open log file: %s\n", log_name);
   }
 
