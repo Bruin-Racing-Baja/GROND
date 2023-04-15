@@ -2,10 +2,10 @@
 #define constants_h
 
 // COMMONLY CHANGED PARAMETERS
-const int TARGET_RPM = 3500;
-const float PROPORTIONAL_GAIN = 0.016;
+const int TARGET_RPM = 3300;
+const float PROPORTIONAL_GAIN = 0.056;
 const float EG_RPM_BUTTERWORTH_CONSTANT = 0.4;
-const int VEL_LIMIT = 10;
+const float VEL_LIMIT = 19.0;
 #define model 21
 
 // Per car constants
