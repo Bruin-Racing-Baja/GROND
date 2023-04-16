@@ -1,2 +1,7 @@
 .pio
 .vscode
+
+logs/*.bin
+logs/*.txt
+logs/*.csv
+logs/*.py
