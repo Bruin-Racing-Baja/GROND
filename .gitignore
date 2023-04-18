@@ -4,4 +4,5 @@
 logs/*.bin
 logs/*.txt
 logs/*.csv
-logs/*.py
+logs/*_pb2.py
+logs/__pycache__
