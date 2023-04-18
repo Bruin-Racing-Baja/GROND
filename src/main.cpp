@@ -8,6 +8,7 @@
 #include <HardwareSerial.h>
 #include <SD.h>
 #include <TimeLib.h>
+#include <header_message.pb.h>
 #include <log_message.pb.h>
 #include <pb.h>
 #include <pb_common.h>
@@ -20,7 +21,7 @@
 
 // Startup Settings
 static constexpr int kMode = OPERATING_MODE;
-static constexpr int kWaitSerial = 0;
+static constexpr int kWaitSerial = 1;
 static constexpr int kHomeOnStartup = 1;  // Controls index search and home
 
 // Object Declarations
@@ -54,13 +55,22 @@ bool sd_init = false;
 volatile unsigned long eg_count = 0;
 volatile unsigned long wl_count = 0;
 
-time_t getTeensy3Time() {
+time_t get_teensy3_time() {
   return Teensy3Clock.get();
 }
 
-void getTimeString(char* buf) {
+void get_time_string(char* buf) {
   sprintf(buf, "%04d-%02d-%02d %02d:%02d:%02d", year(), month(), day(), hour(),
           minute(), second());
+}
+
+bool encode_string(pb_ostream_t* stream, const pb_field_t* field,
+                   void* const* arg) {
+  const char* str = (const char*)(*arg);
+  if (!pb_encode_tag_for_field(stream, field)) {
+    return false;
+  }
+  return pb_encode_string(stream, (uint8_t*)str, strlen(str));
 }
 
 //ඞ
@@ -128,6 +138,7 @@ void control_function() {
       odrive_can.get_shadow_count(ACTUATOR_AXIS), can_error, velocity_command,
       flushed, wl_rpm, eg_rpm, current_wl_count, current_eg_count);
 
+  log_message.control_cycle_count = cycle_count;
   log_message.control_cycle_start_us = start_us;
   log_message.control_cycle_stop_us = stop_us;
   log_message.control_cycle_dt_us = dt_us;
@@ -153,6 +164,9 @@ void control_function() {
   pb_ostream_t ostream = pb_ostream_from_buffer(buffer, sizeof(buffer));
   pb_encode(&ostream, &LogMessage_msg, &log_message);
   size_t message_length = ostream.bytes_written;
+
+  log_file.printf("%01X", LOG_MESSAGE_ID, 1);
+  log_file.printf("%04X", message_length, 4);
   log_file.write(buffer, message_length);
 
   if (cycle_count % cycles_per_log_flush == 0) {
@@ -200,7 +214,7 @@ void setup() {
   }
 
   // Initialize clock
-  setSyncProvider(getTeensy3Time);
+  setSyncProvider(get_teensy3_time);
   if (timeStatus() != timeSet) {
     Serial.println("Failed to sync with RTC");
   }
@@ -230,8 +244,22 @@ void setup() {
   log_file = SD.open(log_name, FILE_WRITE);
 
   if (log_file) {
-    char timestamp[25];
-    getTimeString(timestamp);
+    HeaderMessage header_message;
+
+    header_message.timestamp_human.arg = malloc(20);
+    header_message.timestamp_human.funcs.encode = &encode_string;
+
+    get_time_string((char*)header_message.timestamp_human.arg);
+    header_message.clock_us = micros();
+    header_message.p_gain = PROPORTIONAL_GAIN;
+
+    pb_ostream_t ostream = pb_ostream_from_buffer(buffer, sizeof(buffer));
+    pb_encode(&ostream, &HeaderMessage_msg, &header_message);
+    size_t message_length = ostream.bytes_written;
+
+    log_file.printf("%01X", HEADER_MESSAGE_ID);
+    log_file.printf("%04X", message_length);
+    log_file.write(buffer, message_length);
 
     Serial.printf("Logging at: %s\n", log_name);
   } else {

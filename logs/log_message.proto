@@ -1,9 +1,7 @@
 syntax = "proto3";
 
-import "nanopb.proto";
-
 message LogMessage {
-    string timestamp_human = 1 [(nanopb).max_size = 20];
+    uint32 control_cycle_count = 1;
     uint32 control_cycle_start_us = 2;
     uint32 control_cycle_stop_us = 3;
     uint32 control_cycle_dt_us = 4;

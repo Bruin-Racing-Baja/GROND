@@ -58,6 +58,10 @@ const int MICROSECONDS_PER_SECOND = 1e6;
 const int OPERATING_MODE = 0;
 const int SERIAL_DEBUG_MODE = 1;
 
+// Logging Message IDs
+const int HEADER_MESSAGE_ID = 0;
+const int LOG_MESSAGE_ID = 1;
+
 // Serial debug settings
 const int SERIAL_DEBUGGER_INTERVAL_US = 100000;
 
