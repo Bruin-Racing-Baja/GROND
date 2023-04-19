@@ -1,8 +1,7 @@
 .pio
 .vscode
 
-logs/*.bin
-logs/*.txt
-logs/*.csv
-logs/*_pb2.py
-logs/__pycache__
+data/logs
+data/*_pb2.py
+data/__pycache__
+data/graphs
