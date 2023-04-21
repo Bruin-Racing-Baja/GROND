@@ -236,13 +236,13 @@ void setup() {
   // log file determination and initialization
   // TODO skip log if SD failed?
   char log_name[35];
-  sprintf(log_name, "log_%04d-%02d-%02d_%02d-%02d-%02d.txt", year(), month(),
+  sprintf(log_name, "log_%04d-%02d-%02d_%02d-%02d-%02d.bin", year(), month(),
           day(), hour(), minute(), second());
   if (SD.exists(log_name)) {
     char log_name_duplicate[35];
     int i = 1;
     do {
-      sprintf(log_name_duplicate, "%.*s_%03d.txt", 23, log_name, i);
+      sprintf(log_name_duplicate, "%.*s_%03d.bin", 23, log_name, i);
       i++;
     } while (SD.exists(log_name_duplicate));
     strcpy(log_name, log_name_duplicate);
