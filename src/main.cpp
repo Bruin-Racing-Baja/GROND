@@ -17,11 +17,12 @@
 // Classes
 #include <Actuator.h>
 #include <Constants.h>
+#include <OLED.h>
 #include <OdriveCAN.h>
 
 // Startup Settings
 static constexpr int kMode = OPERATING_MODE;
-static constexpr int kWaitSerial = 1;
+static constexpr int kWaitSerial = 0;
 static constexpr int kHomeOnStartup = 1;  // Controls index search and home
 
 // Object Declarations
@@ -29,6 +30,7 @@ OdriveCAN odrive_can;
 Actuator actuator(&odrive_can);
 IntervalTimer timer;
 File log_file;
+OLED oled;
 
 // Parses CAN messages when received
 void odrive_can_parse(const CAN_message_t& msg) {
@@ -179,7 +181,7 @@ void control_function() {
     log_file.flush();
     digitalToggle(LED_PINS[32]);
   }
-
+  oled.printDebug(&log_message);
   cycle_count++;
 }
 
@@ -277,6 +279,7 @@ void setup() {
   // Establish odrive connection
   odrive_can.init(&odrive_can_parse);
   actuator.init();
+  Serial.printf("Oled init: %d", oled.init());
 
   // Home actuator
   if (kHomeOnStartup) {
