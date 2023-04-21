@@ -16,7 +16,7 @@
 
 // Startup Settings
 static constexpr int kMode = OPERATING_MODE;
-static constexpr int kWaitSerial = 1;
+static constexpr int kWaitSerial = 0;
 static constexpr int kHomeOnStartup = 1;  // Controls index search and home
 
 // Object Declarations
@@ -35,8 +35,8 @@ u_int32_t last_exec_us;
 long int last_eg_count = 0;
 long int last_wl_count = 0;
 float desired_speed = 0;
-int last_left_button = 0;
-int last_right_button = 0;
+bool button_states[5];
+bool last_button_states[5];
 int cycles_per_log_flush = 10;
 int last_log_flush = 0;
 bool pressed = false;
@@ -81,60 +81,64 @@ void control_function() {
   float error = TARGET_RPM - eg_rpm;
   float velocity_command = error * PROPORTIONAL_GAIN;
 
-  int left_button = !digitalRead(BUTTON_LEFT_PIN);
-  int right_button = !digitalRead(BUTTON_RIGHT_PIN);
-  int center_button = !digitalRead(BUTTON_CENTER_PIN);
-  int down_button = !digitalRead(BUTTON_DOWN_PIN);
-  if (left_button && !last_left_button) {
+  for (int i = 0; i < 5; i++) {
+    button_states[i] = !digitalRead(BUTTON_PINS[i]);
+  }
+  if (button_states[BUTTON_LEFT] && !last_button_states[BUTTON_LEFT]) {
     desired_speed -= 1;
     pressed = true;
-  } else if (right_button && !last_right_button) {
+  } else if (button_states[BUTTON_RIGHT] && !last_button_states[BUTTON_RIGHT]) {
     desired_speed += 1;
     pressed = true;
   }
-  if (center_button) {
+  if (button_states[BUTTON_CENTER]) {
     desired_speed = 0;
     pressed = true;
   }
+  for (int i = 0; i < 5; i++) {
+    last_button_states[i] = button_states[i];
+  }
   if (last_log_flush == cycles_per_log_flush) {
     log_file.flush();
-    odrive_can.odrive_can.reset();
-    odrive_can.init(&odrive_can_parse);
     last_log_flush = 0;
     flushed = true;
   }
 
-  last_left_button = left_button;
-  last_right_button = right_button;
-  velocity_command = desired_speed;
-
-  actuator.update_speed(velocity_command);
+  //velocity_command = desired_speed;
+  float real_velocity_command = actuator.update_speed(velocity_command);
 
   u_int32_t stop_us = micros();
   int can_error = 0;
   can_error += !!odrive_can.request_vbus_voltage();
+  can_error += !!odrive_can.request_encoder_count(ACTUATOR_AXIS);
   can_error += !!odrive_can.request_motor_error(ACTUATOR_AXIS);
   can_error += !!odrive_can.request_encoder_count(ACTUATOR_AXIS);
   can_error += !!odrive_can.request_iq(ACTUATOR_AXIS);
 
   last_log_flush++;
+
   Serial.printf(
-      "ms: %d, voltage: %.2f, current: %.5f, iq_set: %.5f, iq_m: %.5f, "
-      "heartbeat: %d, enc: %d, "
-      "can_error: %d, vel_cmd: "
-      "%.2f, flushed: %d\n",
+      "ms: %d, vltg: %.2f, crnt: %.2f, iq_set: %.2f, iq_m: %.2f, "
+      "hrt: %d, enc: %d, "
+      "can_er: %d, vel_cmd: "
+      "%.2f (%.2f), flsh: %d, w_rpm: %.2f, e_rpm: %.2f, w_cnt: %d, e_cnt: %d, "
+      "ax_err: %d, mtr_err: %d, enc_err: %d\n",
       millis(), odrive_can.get_voltage(), odrive_can.get_current(),
       odrive_can.get_iq_setpoint(ACTUATOR_AXIS),
       odrive_can.get_iq_measured(ACTUATOR_AXIS),
       odrive_can.get_time_since_heartbeat_ms(),
-      odrive_can.get_shadow_count(ACTUATOR_AXIS), can_error, velocity_command,
-      flushed);
+      odrive_can.get_shadow_count(ACTUATOR_AXIS), can_error,
+      real_velocity_command, velocity_command, flushed, wl_rpm, eg_rpm,
+      current_wl_count, current_eg_count,
+      odrive_can.get_axis_error(ACTUATOR_AXIS),
+      odrive_can.get_motor_error(ACTUATOR_AXIS),
+      odrive_can.get_encoder_error(ACTUATOR_AXIS));
 
   log_file.printf(
-      "%d, %.2f, %d, %.2f, %.2f, %.2f, %.2f, %d, %d, %d, %.5f, %d, %d, %d, "
+      "%d, %.2f, %d, %.2f, %.2f, %d, %.2f, %.2f, %d, %d, %d, %.5f, %d, %d, %d, "
       "%.5f, %d, %d, %.5f, %d, %d, %d\n",
       dt_us, odrive_can.get_voltage(), odrive_can.get_time_since_heartbeat_ms(),
-      wl_rpm, eg_rpm, TARGET_RPM, velocity_command,
+      wl_rpm, eg_rpm, TARGET_RPM, velocity_command, real_velocity_command,
       odrive_can.get_shadow_count(ACTUATOR_AXIS), -1, -1,
       odrive_can.get_iq_measured(ACTUATOR_AXIS), flushed, current_wl_count,
       current_eg_count, odrive_can.get_iq_setpoint(ACTUATOR_AXIS), start_us,
@@ -143,6 +147,11 @@ void control_function() {
       odrive_can.get_motor_error(ACTUATOR_AXIS),
       odrive_can.get_encoder_error(ACTUATOR_AXIS));
 
+  if (odrive_can.get_axis_error(ACTUATOR_AXIS) ||
+      odrive_can.get_motor_error(ACTUATOR_AXIS) ||
+      odrive_can.get_encoder_error(ACTUATOR_AXIS)) {
+    digitalWrite(LED_PINS[1], HIGH);
+  }
   pressed = false;
   flushed = false;
 }
@@ -172,11 +181,13 @@ void serial_debugger() {
 }
 
 void setup() {
-  pinMode(BUTTON_UP_PIN, INPUT);
-  pinMode(BUTTON_DOWN_PIN, INPUT);
-  pinMode(BUTTON_LEFT_PIN, INPUT);
-  pinMode(BUTTON_RIGHT_PIN, INPUT);
-  pinMode(BUTTON_CENTER_PIN, INPUT);
+  for (int i = 0; i < 5; i++) {
+    pinMode(BUTTON_PINS[i], INPUT);
+  }
+  for (int i = 0; i < 4; i++) {
+    pinMode(LED_PINS[i], OUTPUT);
+  }
+  digitalWrite(LED_PINS[2], HIGH);
 
   if (kWaitSerial) {
     while (!Serial) {}
@@ -191,6 +202,7 @@ void setup() {
   // SD initialization
   sd_init = SD.sdfs.begin(SdioConfig(DMA_SDIO));
   if (!sd_init) {
+    digitalWrite(LED_PINS[0], HIGH);
     Serial.println("SD failed to init");
   }
 
@@ -216,10 +228,11 @@ void setup() {
     getTimeString(timestamp);
 
     Serial.printf("Logging at: %s\n", log_name);
-    log_file.printf("Initialization Started (%s) - Model: %d ", timestamp,
+    log_file.printf("Initialization Started (%s) - Model: %d\n", timestamp,
                     MODEL_NUMBER);
     log_file.flush();
   } else {
+    digitalWrite(LED_PINS[0], HIGH);
     Serial.printf("Failed to open log file: %s\n", log_name);
   }
 
@@ -233,6 +246,7 @@ void setup() {
     actuator.encoder_index_search() ? Serial.println("Complete")
                                     : Serial.println("Failed");
   }
+  digitalWrite(LED_PINS[3], HIGH);
 
   // Attach wl, eg interrupts
   attachInterrupt(
@@ -245,6 +259,7 @@ void setup() {
   last_exec_us = micros();
   switch (kMode) {
     case OPERATING_MODE:
+      odrive_can.set_input_vel(ACTUATOR_AXIS, 0, 0);
       odrive_can.set_state(ACTUATOR_AXIS, ODRIVE_VELOCITY_CONTROL_STATE);
       timer.begin(control_function, CONTROL_FUNCTION_INTERVAL_US);
       break;
