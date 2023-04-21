@@ -1,2 +1,0 @@
-[filter "strip-notebook-output"]
-	clean = "echo filter"
