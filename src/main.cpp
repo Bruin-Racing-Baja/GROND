@@ -122,6 +122,7 @@ void control_function() {
   u_int32_t stop_us = micros();
   int can_error = 0;
   can_error += !!odrive_can.request_vbus_voltage();
+  can_error += !!odrive_can.request_encoder_count(ACTUATOR_AXIS);
   can_error += !!odrive_can.request_motor_error(ACTUATOR_AXIS);
   can_error += !!odrive_can.request_encoder_count(ACTUATOR_AXIS);
   can_error += !!odrive_can.request_iq(ACTUATOR_AXIS);
@@ -130,13 +131,18 @@ void control_function() {
       "ms: %d, vltg: %.2f, crnt: %.2f, iq_set: %.2f, iq_m: %.2f, "
       "hrt: %d, enc: %d, "
       "can_er: %d, vel_cmd: "
-      "%.2f, flsh: %d, w_rpm: %.2f, e_rpm: %.2f, w_cnt: %d, e_cnt: %d\n",
+      "%.2f (%.2f), flsh: %d, w_rpm: %.2f, e_rpm: %.2f, w_cnt: %d, e_cnt: %d, "
+      "ax_err: %d, mtr_err: %d, enc_err: %d\n",
       millis(), odrive_can.get_voltage(), odrive_can.get_current(),
       odrive_can.get_iq_setpoint(ACTUATOR_AXIS),
       odrive_can.get_iq_measured(ACTUATOR_AXIS),
       odrive_can.get_time_since_heartbeat_ms(),
-      odrive_can.get_shadow_count(ACTUATOR_AXIS), can_error, velocity_command,
-      flushed, wl_rpm, eg_rpm, current_wl_count, current_eg_count);
+      odrive_can.get_shadow_count(ACTUATOR_AXIS), can_error,
+      real_velocity_command, velocity_command, flushed, wl_rpm, eg_rpm,
+      current_wl_count, current_eg_count,
+      odrive_can.get_axis_error(ACTUATOR_AXIS),
+      odrive_can.get_motor_error(ACTUATOR_AXIS),
+      odrive_can.get_encoder_error(ACTUATOR_AXIS));
 
   log_message.control_cycle_count = cycle_count;
   log_message.control_cycle_start_us = start_us;
@@ -208,6 +214,7 @@ void setup() {
   for (int i = 0; i < 4; i++) {
     pinMode(LED_PINS[i], OUTPUT);
   }
+  digitalWrite(LED_PINS[2], HIGH);
 
   if (kWaitSerial) {
     while (!Serial) {}
@@ -277,6 +284,7 @@ void setup() {
     actuator.encoder_index_search() ? Serial.println("Complete")
                                     : Serial.println("Failed");
   }
+  digitalWrite(LED_PINS[3], HIGH);
 
   // Attach wl, eg interrupts
   attachInterrupt(
