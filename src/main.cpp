@@ -117,7 +117,7 @@ void control_function() {
   }
 
   velocity_command = desired_speed;
-  actuator.update_speed(velocity_command);
+  float real_velocity_command = actuator.update_speed(velocity_command);
 
   u_int32_t stop_us = micros();
   int can_error = 0;
