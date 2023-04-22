@@ -23,6 +23,7 @@
 // Startup Settings
 static constexpr int kMode = OPERATING_MODE;
 static constexpr int kWaitSerial = 0;
+int kOledEnabled = 0;
 static constexpr int kHomeOnStartup = 1;  // Controls index search and home
 
 // Object Declarations
@@ -104,15 +105,12 @@ void control_function() {
     button_states[i] = !digitalRead(BUTTON_PINS[i]);
   }
   if (button_states[BUTTON_LEFT] && !last_button_states[BUTTON_LEFT]) {
-    desired_speed -= 1;
-    pressed = true;
+    oled.scroll(false);
   } else if (button_states[BUTTON_RIGHT] && !last_button_states[BUTTON_RIGHT]) {
-    desired_speed += 1;
-    pressed = true;
+    oled.scroll(true);
   }
   if (button_states[BUTTON_CENTER]) {
-    desired_speed = 0;
-    pressed = true;
+    kOledEnabled = 1;
   }
   for (int i = 0; i < 5; i++) {
     last_button_states[i] = button_states[i];
@@ -181,7 +179,9 @@ void control_function() {
     log_file.flush();
     digitalToggle(LED_PINS[32]);
   }
-  oled.printDebug(&log_message);
+
+  if (kOledEnabled)
+    oled.printDebug(&log_message);
   cycle_count++;
 }
 

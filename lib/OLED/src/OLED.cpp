@@ -55,19 +55,51 @@ bool OLED::printInt(int n) {
 }
 
 bool OLED::printDebug(LogMessage* log_message) {
+  if (!enabled)
+    return 1;
   display.clearDisplay();
   setFormat();
-  display.printf("t: %.1f \nec: %u \nwc: %u \nenc: %d",
-                 log_message->control_cycle_start_us / 1.0e6,
-                 log_message->engine_count, log_message->wheel_count,
-                 log_message->shadow_count);
+  switch (scrollNum) {
+    case 0:
+      display.printf("t: %.1f \nec: %u \nwc: %u \nenc: %d",
+                     log_message->control_cycle_start_us / 1.0e6,
+                     log_message->engine_count, log_message->wheel_count,
+                     log_message->shadow_count);
+      break;
+
+    case 1:
+      display.printf("erpm: %.1f\nwrpm: %.1f\ntrpm: %.1f\nvcmd: %.1f",
+                     log_message->engine_rpm, log_message->wheel_rpm,
+                     log_message->target_rpm, log_message->velocity_command);
+      break;
+
+    default:
+      display.print("Error: Invalid screen number");
+      break;
+  }
 
   display.display();
-  return 1;
+  return 0;
 }
 
 void OLED::setFormat() {
   display.setTextSize(2);               // Normal 1:1 pixel scale
   display.setTextColor(SSD1306_WHITE);  // Draw white text
   display.setCursor(0, 0);              // Start at top-left corner
+}
+
+/**
+ * @brief Scroll info displayed on OLED
+ * @param direction 1 for right, 0 for left
+ * @return Number of commanded screen
+*/
+int OLED::scroll(bool direction) {
+  if (direction) {
+    if (scrollNum + 1 < NUMBER_OF_PAGES)
+      scrollNum++;
+  } else {
+    if (scrollNum - 1 >= 0)
+      scrollNum--;
+  }
+  return scrollNum;
 }
