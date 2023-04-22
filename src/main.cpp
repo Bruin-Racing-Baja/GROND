@@ -23,7 +23,7 @@
 // Startup Settings
 static constexpr int kMode = OPERATING_MODE;
 static constexpr int kWaitSerial = 0;
-int kOledEnabled = 0;
+static constexpr int kOledEnabled = 1;
 static constexpr int kHomeOnStartup = 1;  // Controls index search and home
 
 // Object Declarations
@@ -53,6 +53,7 @@ int last_log_flush = 0;
 bool pressed = false;
 bool flushed = false;
 bool sd_init = false;
+bool oled_toggle = true;
 
 // Geartooth counts
 volatile unsigned long eg_count = 0;
@@ -105,12 +106,13 @@ void control_function() {
     button_states[i] = !digitalRead(BUTTON_PINS[i]);
   }
   if (button_states[BUTTON_LEFT] && !last_button_states[BUTTON_LEFT]) {
-    oled.scroll(false);
-  } else if (button_states[BUTTON_RIGHT] && !last_button_states[BUTTON_RIGHT]) {
-    oled.scroll(true);
+    oled.scroll(OLED_SCROLL_LEFT);
+  }
+  if (button_states[BUTTON_RIGHT] && !last_button_states[BUTTON_RIGHT]) {
+    oled.scroll(OLED_SCROLL_RIGHT);
   }
   if (button_states[BUTTON_CENTER]) {
-    kOledEnabled = 1;
+    oled_toggle = !oled_toggle;
   }
   for (int i = 0; i < 5; i++) {
     last_button_states[i] = button_states[i];
@@ -180,8 +182,9 @@ void control_function() {
     digitalToggle(LED_PINS[32]);
   }
 
-  if (kOledEnabled)
+  if (kOledEnabled && oled_toggle) {
     oled.printDebug(&log_message);
+  }
   cycle_count++;
 }
 
@@ -279,7 +282,13 @@ void setup() {
   // Establish odrive connection
   odrive_can.init(&odrive_can_parse);
   actuator.init();
-  Serial.printf("Oled init: %d", oled.init());
+  if (kOledEnabled) {
+    bool oled_status = oled.init();
+    if (!oled_status) {
+      Serial.printf("Failed to init OLED\n");
+    }
+    oled.printInitMessage();
+  }
 
   // Home actuator
   if (kHomeOnStartup) {
