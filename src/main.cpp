@@ -116,7 +116,7 @@ void control_function() {
     last_button_states[i] = button_states[i];
   }
 
-  velocity_command = desired_speed;
+  //velocity_command = desired_speed;
   float clamped_velocity_command = actuator.update_speed(velocity_command);
 
   u_int32_t stop_us = micros();
