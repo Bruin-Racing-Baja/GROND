@@ -1,5 +1,7 @@
+#include <Constants.h>
 #include <FlexCAN_T4.h>
 #include <OdriveCAN.h>
+
 
 FlexCAN_T4<CAN2, RX_SIZE_256, TX_SIZE_16> OdriveCAN::odrive_can;
 
@@ -10,7 +12,7 @@ bool OdriveCAN::init(void (*parse)(const CAN_message_t& msg)) {
   OdriveCAN::odrive_can.enableFIFO();
   OdriveCAN::odrive_can.enableFIFOInterrupt();
   OdriveCAN::odrive_can.onReceive(parse);
-  NVIC_SET_PRIORITY(IRQ_CAN2, 1);
+  NVIC_SET_PRIORITY(IRQ_CAN2, CAN_ISR_LEVEL);
   return true;
 }
 

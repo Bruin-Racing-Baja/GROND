@@ -42,6 +42,12 @@ const int CONTROL_FUNCTION_INTERVAL_US = 1e5;  //microseconds
 const int ODRIVE_BAUD_RATE = 115200;           //hz
 const int ACTUATOR_AXIS = 1;
 
+// Interrupt levels
+const int CAN_ISR_LEVEL = 3;
+const int CONTROL_FUNCTION_ISR_LEVEL = 4;
+const int EG_COUNT_ISR_LEVEL = 1;
+const int WL_COUNT_ISR_LEVEL = 2;
+
 // Odrive constants
 const int ODRIVE_DEFAULT_TIMEOUT = 1000;  //ms
 

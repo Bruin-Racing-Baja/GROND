@@ -295,8 +295,12 @@ void setup() {
   attachInterrupt(
       WL_INTERRUPT_PIN, []() { ++wl_count; }, RISING);
 
+  // NOTE: This locks all the pin interrupts to a very high level, for better or worse
+  NVIC_SET_PRIORITY(IRQ_GPIO6789, EG_COUNT_ISR_LEVEL);
+
   // Attach operating mode interrupt
   Serial.print("Attaching interrupt mode " + String(kMode) + "\n");
+  timer.priority(CONTROL_FUNCTION_ISR_LEVEL);
   last_exec_us = micros();
   switch (kMode) {
     case OPERATING_MODE:
