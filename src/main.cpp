@@ -117,7 +117,7 @@ void control_function() {
   }
 
   velocity_command = desired_speed;
-  float real_velocity_command = actuator.update_speed(velocity_command);
+  float clamped_velocity_command = actuator.update_speed(velocity_command);
 
   u_int32_t stop_us = micros();
   int can_error = 0;
@@ -138,7 +138,7 @@ void control_function() {
       odrive_can.get_iq_measured(ACTUATOR_AXIS),
       odrive_can.get_time_since_heartbeat_ms(),
       odrive_can.get_shadow_count(ACTUATOR_AXIS), can_error,
-      real_velocity_command, velocity_command, flushed, wl_rpm, eg_rpm,
+      clamped_velocity_command, velocity_command, flushed, wl_rpm, eg_rpm,
       current_wl_count, current_eg_count,
       odrive_can.get_axis_error(ACTUATOR_AXIS),
       odrive_can.get_motor_error(ACTUATOR_AXIS),
@@ -154,7 +154,8 @@ void control_function() {
   log_message.engine_count = current_eg_count;
   log_message.wheel_count = current_wl_count;
   log_message.target_rpm = TARGET_RPM;
-  log_message.velocity_command = velocity_command;
+  log_message.velocity_command = clamped_velocity_command;
+  log_message.unclamped_velocity_command = velocity_command;
   log_message.last_heartbeat_ms = odrive_can.get_time_since_heartbeat_ms();
   log_message.axis_error = odrive_can.get_axis_error(ACTUATOR_AXIS);
   log_message.motor_error = odrive_can.get_motor_error(ACTUATOR_AXIS);
