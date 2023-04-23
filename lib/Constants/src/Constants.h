@@ -35,7 +35,8 @@ const int LED_PINS[5] = {2, 3, 4, 5};
 
 // Physical constants
 const float ROTATIONS_PER_ENGINE_COUNT = 1.0 / 16;
-const float ROTATIONS_PER_WHEEL_COUNT = 1.0 / 19;  // Actual rotation of wheel
+const float MEASURED_GEAR_ROTATIONS_PER_COUNT =
+    1.0 / 6;  // Actual rotation of wheel
 const float MEASURED_GEAR_TO_SECONDARY_ROTATIONS = 45.0 / 17;
 const float SECONDARY_TO_WHEEL_ROTATIONS =
     (17.0 / 45.0) * (18.0 / 57.0);  // Actual rotation of wheel
