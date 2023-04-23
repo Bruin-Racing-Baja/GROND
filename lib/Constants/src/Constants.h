@@ -7,11 +7,12 @@ const float PROPORTIONAL_GAIN = 0.056;
 const float DERIVATIVE_GAIN = 0;
 const float EG_RPM_BUTTERWORTH_CONSTANT = 0.4;
 const float VEL_LIMIT = 29.0;
-const float WHEEL_REF_LOW_RPM = 3100;
-const float WHEEL_REF_HIGH_RPM = 3500;
-const float WHEEL_REF_BREAKPOINT_MPH = 10;
+const float WHEEL_REF_LOW_RPM = 3000;
+const float WHEEL_REF_HIGH_RPM = 3650;
+const float WHEEL_REF_BREAKPOINT_SECONDARY_RPM = 875;
 const float WHEEL_REF_PIECEWISE_SLOPE =
-    ((WHEEL_REF_HIGH_RPM - WHEEL_REF_LOW_RPM) / WHEEL_REF_BREAKPOINT_MPH);
+    ((WHEEL_REF_HIGH_RPM - WHEEL_REF_LOW_RPM) /
+     WHEEL_REF_BREAKPOINT_SECONDARY_RPM);
 #define model 21
 
 // Per car constants
@@ -34,9 +35,9 @@ const int LED_PINS[5] = {2, 3, 4, 5};
 
 // Physical constants
 const float ROTATIONS_PER_ENGINE_COUNT = 1.0 / 16;
-const float ROTATIONS_PER_WHEEL_COUNT = 1.0 / 12;  // Actual rotation of wheel
-const float SECONDARY_ROTATIONS_PER_WHEEL_COUNT =
-    1.0 / ((45 / 17) * (57 / 18));  //Rotation of secondary
+const float ROTATIONS_PER_WHEEL_COUNT = 1.0 / 19;  // Actual rotation of wheel
+const float SECONDARY_ROTATIONS_PER_WHEEL_ROTATION =
+    (45.0 / 17.0) * (57.0 / 18.0);
 const float WHEEL_DIAMETER_IN = 23;
 const float WHEEL_MPH_PER_RPM = (WHEEL_DIAMETER_IN * M_PI) / (12 * 5280);
 

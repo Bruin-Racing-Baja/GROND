@@ -24,4 +24,5 @@ message LogMessage {
     int32 shadow_count = 21;
     float velocity_command = 22;
     float velocity_estimate = 23;
+    float filtered_secondary_rpm = 24;
 }

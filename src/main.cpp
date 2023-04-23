@@ -75,6 +75,9 @@ bool encode_string(pb_ostream_t* stream, const pb_field_t* field,
 }
 
 //ඞ
+float last_filtered_sd_rpm = 0;
+float alpha = 0.4
+;
 void control_function() {
   u_int32_t start_us = micros();
   u_int32_t dt_us = start_us - last_exec_us;
@@ -92,20 +95,23 @@ void control_function() {
   float wl_rpm = (current_wl_count - last_wl_count) *
                  ROTATIONS_PER_WHEEL_COUNT / dt_us * MICROSECONDS_PER_SECOND *
                  60.0;
-  float wl_mph = wl_rpm * WHEEL_MPH_PER_RPM;
+  float sd_rpm = wl_rpm * SECONDARY_ROTATIONS_PER_WHEEL_ROTATION;
+  float filtered_sd_rpm = sd_rpm * alpha + (1 - alpha) * last_filtered_sd_rpm;
+  last_filtered_sd_rpm = filtered_sd_rpm;
 
   last_eg_count = current_eg_count;
   last_wl_count = current_wl_count;
   last_exec_us = start_us;
 
   float target_rpm = WHEEL_REF_HIGH_RPM;
-  if (wl_mph <= 0) {
+  if (filtered_sd_rpm <= 0) {
     target_rpm = WHEEL_REF_LOW_RPM;
-  } else if (wl_mph <= WHEEL_REF_BREAKPOINT_MPH) {
-    target_rpm = WHEEL_REF_PIECEWISE_SLOPE * wl_mph + WHEEL_REF_LOW_RPM;
+  } else if (filtered_sd_rpm <= WHEEL_REF_BREAKPOINT_SECONDARY_RPM) {
+    target_rpm =
+        WHEEL_REF_PIECEWISE_SLOPE * filtered_sd_rpm + WHEEL_REF_LOW_RPM;
   }
 
-  target_rpm = TARGET_RPM;
+  //target_rpm = TARGET_RPM;
   float error = target_rpm - eg_rpm;
   float d_error = (error - last_error) / dt_s;
   float velocity_command =
@@ -167,7 +173,7 @@ void control_function() {
   log_message.engine_rpm = eg_rpm;
   log_message.engine_count = current_eg_count;
   log_message.wheel_count = current_wl_count;
-  log_message.target_rpm = TARGET_RPM;
+  log_message.target_rpm = target_rpm;
   log_message.velocity_command = clamped_velocity_command;
   log_message.unclamped_velocity_command = velocity_command;
   log_message.last_heartbeat_ms = odrive_can.get_time_since_heartbeat_ms();
@@ -182,6 +188,7 @@ void control_function() {
   log_message.outbound_estop = false;
   log_message.shadow_count = odrive_can.get_shadow_count(ACTUATOR_AXIS);
   log_message.velocity_estimate = odrive_can.get_vel_estimate(ACTUATOR_AXIS);
+  log_message.filtered_secondary_rpm = filtered_sd_rpm;
 
   pb_ostream_t ostream = pb_ostream_from_buffer(buffer, sizeof(buffer));
   pb_encode(&ostream, &LogMessage_msg, &log_message);
