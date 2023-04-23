@@ -76,8 +76,8 @@ bool encode_string(pb_ostream_t* stream, const pb_field_t* field,
 
 //ඞ
 float last_filtered_sd_rpm = 0;
-float alpha = 0.4
-;
+float alpha = 0.4;
+
 void control_function() {
   u_int32_t start_us = micros();
   u_int32_t dt_us = start_us - last_exec_us;
@@ -95,7 +95,7 @@ void control_function() {
   float wl_rpm = (current_wl_count - last_wl_count) *
                  ROTATIONS_PER_WHEEL_COUNT / dt_us * MICROSECONDS_PER_SECOND *
                  60.0;
-  float sd_rpm = wl_rpm * SECONDARY_ROTATIONS_PER_WHEEL_ROTATION;
+  float sd_rpm = wl_rpm * MEASURED_GEAR_TO_SECONDARY_ROTATIONS;
   float filtered_sd_rpm = sd_rpm * alpha + (1 - alpha) * last_filtered_sd_rpm;
   last_filtered_sd_rpm = filtered_sd_rpm;
 
