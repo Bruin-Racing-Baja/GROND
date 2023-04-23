@@ -21,7 +21,7 @@
 
 // Startup Settings
 static constexpr int kMode = OPERATING_MODE;
-static constexpr int kWaitSerial = 1;
+static constexpr int kWaitSerial = 0;
 static constexpr int kHomeOnStartup = 1;  // Controls index search and home
 
 // Object Declarations
@@ -167,6 +167,7 @@ void control_function() {
   log_message.inbound_estop = false;
   log_message.outbound_estop = false;
   log_message.shadow_count = odrive_can.get_shadow_count(ACTUATOR_AXIS);
+  log_message.velocity_estimate = odrive_can.get_vel_estimate(ACTUATOR_AXIS);
 
   pb_ostream_t ostream = pb_ostream_from_buffer(buffer, sizeof(buffer));
   pb_encode(&ostream, &LogMessage_msg, &log_message);
