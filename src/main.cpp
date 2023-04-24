@@ -209,6 +209,57 @@ void serial_debugger() {
                 current_eg_count, current_wl_count, eg_rpm, wl_rpm);
 }
 
+void beholder() {
+  u_int32_t start_us = micros();
+  u_int32_t dt_us = start_us - last_exec_us;
+
+  noInterrupts();
+  long current_eg_count = eg_count;
+  long current_wl_count = wl_count;
+  interrupts();
+
+  // First, calculate rpms
+  float eg_rpm = (current_eg_count - last_eg_count) *
+                 ROTATIONS_PER_ENGINE_COUNT / dt_us * MICROSECONDS_PER_SECOND *
+                 60.0;
+  float wl_rpm = (current_wl_count - last_wl_count) *
+                 ROTATIONS_PER_WHEEL_COUNT / dt_us * MICROSECONDS_PER_SECOND *
+                 60.0;
+
+  last_eg_count = current_eg_count;
+  last_wl_count = current_wl_count;
+  last_exec_us = start_us;
+
+  float error = TARGET_RPM - eg_rpm;
+  float velocity_command = error * PROPORTIONAL_GAIN;
+
+  log_message.control_cycle_count = cycle_count;
+  log_message.control_cycle_start_us = start_us;
+  log_message.control_cycle_dt_us = dt_us;
+  log_message.control_cycle_dt_us = dt_us;
+  log_message.wheel_rpm = wl_rpm;
+  log_message.engine_rpm = eg_rpm;
+  log_message.engine_count = current_eg_count;
+  log_message.wheel_count = current_wl_count;
+  log_message.target_rpm = TARGET_RPM;
+  log_message.unclamped_velocity_command = velocity_command;
+
+  pb_ostream_t ostream = pb_ostream_from_buffer(buffer, sizeof(buffer));
+  pb_encode(&ostream, &LogMessage_msg, &log_message);
+  size_t message_length = ostream.bytes_written;
+
+  log_file.printf("%01X", LOG_MESSAGE_ID, 1);
+  log_file.printf("%04X", message_length, 4);
+  log_file.write(buffer, message_length);
+
+  if (cycle_count % cycles_per_log_flush == 0) {
+    log_file.flush();
+    digitalToggle(LED_PINS[32]);
+  }
+
+  cycle_count++;
+}
+
 void setup() {
   for (int i = 0; i < 5; i++) {
     pinMode(BUTTON_PINS[i], INPUT);
@@ -277,11 +328,13 @@ void setup() {
   }
 
   // Establish odrive connection
-  odrive_can.init(&odrive_can_parse);
-  actuator.init();
+  if (kMode != 2) {
+    odrive_can.init(&odrive_can_parse);
+    actuator.init();
+  }
 
   // Home actuator
-  if (kHomeOnStartup) {
+  if (kHomeOnStartup && kMode != 2) {
     Serial.print("Index search: ");
     actuator.encoder_index_search() ? Serial.println("Complete")
                                     : Serial.println("Failed");
@@ -305,6 +358,9 @@ void setup() {
       break;
     case SERIAL_DEBUG_MODE:
       timer.begin(serial_debugger, SERIAL_DEBUGGER_INTERVAL_US);
+      break;
+    case BEHOLDER_MODE:
+      timer.begin(beholder, CONTROL_FUNCTION_INTERVAL_US);
       break;
   }
 }

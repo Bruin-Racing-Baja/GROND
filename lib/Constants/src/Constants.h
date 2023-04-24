@@ -2,7 +2,7 @@
 #define constants_h
 
 // COMMONLY CHANGED PARAMETERS
-const int TARGET_RPM = 3300;
+const int TARGET_RPM = 2800;
 const float PROPORTIONAL_GAIN = 0.056;
 const float EG_RPM_BUTTERWORTH_CONSTANT = 0.4;
 const float VEL_LIMIT = 29.0;
@@ -57,6 +57,7 @@ const int MICROSECONDS_PER_SECOND = 1e6;
 // GROND Software modes
 const int OPERATING_MODE = 0;
 const int SERIAL_DEBUG_MODE = 1;
+const int BEHOLDER_MODE = 2;
 
 // Logging Message IDs
 const int HEADER_MESSAGE_ID = 0;
