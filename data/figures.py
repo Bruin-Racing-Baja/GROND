@@ -160,6 +160,23 @@ def getEngineVsWheelFigure(df: pd.DataFrame) -> Figure:
     return fig
 
 
+def getVoltageAndCurrentFigure(df: pd.DataFrame) -> Figure:
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scatter(x=df["control_cycle_start_s"], y=df["voltage"], name="Voltage")
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=df["control_cycle_start_s"], y=df["iq_measured"], name="IQ Measured"
+        )
+    )
+    fig.update_layout(
+        xaxis_title="Time (s)",
+        title=f"Current and Voltage<br><sup>{df.filename}</sup>",
+    )
+    return fig
+
+
 def getEverythingFigure(df: pd.DataFrame) -> Figure:
     # TODO ensure columns exist
     fig = go.Figure()
@@ -174,6 +191,32 @@ def getEverythingFigure(df: pd.DataFrame) -> Figure:
         )
     except KeyError:
         fig = go.Figure()
+    return fig
+
+
+def getFilteredSecondaryFigure(df: pd.DataFrame) -> Figure:
+    try:
+        fig = go.Figure()
+        fig.add_trace(
+            go.Scatter(
+                x=df["control_cycle_start_s"],
+                y=df["filtered_secondary_rpm"],
+                name="Fitlered Secondary RPM",
+            )
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=df["control_cycle_start_s"],
+                y=df["secondary_rpm"],
+                name="Fitlered Secondary RPM",
+            )
+        )
+        fig.update_layout(
+            xaxis_title="Time (s)",
+            title=f"Fitlered Secondary RPM<br><sup>{df.filename}</sup>",
+        )
+    except KeyError:
+        pass
     return fig
 
 
