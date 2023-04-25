@@ -126,10 +126,12 @@ void control_function() {
   float eg_rpm = (current_eg_count - last_eg_count) *
                  ROTATIONS_PER_ENGINE_COUNT / dt_us * MICROSECONDS_PER_SECOND *
                  60.0;
-  float wl_rpm = (current_wl_count - last_wl_count) *
-                 ROTATIONS_PER_WHEEL_COUNT / dt_us * MICROSECONDS_PER_SECOND *
-                 60.0;
-  float sd_rpm = wl_rpm * SECONDARY_ROTATIONS_PER_WHEEL_ROTATION;
+  float ms_rpm = (current_wl_count - last_wl_count) *
+                 MEASURED_GEAR_ROTATIONS_PER_COUNT / dt_us *
+                 MICROSECONDS_PER_SECOND * 60.0;
+  float sd_rpm = ms_rpm * MEASURED_GEAR_TO_SECONDARY_ROTATIONS;
+  float wl_rpm = ms_rpm * MEASURED_GEAR_TO_SECONDARY_ROTATIONS *
+                 SECONDARY_TO_WHEEL_ROTATIONS;
 
   float filt_sd_rpm =
       winter_filter(SD_RPM_WINTER_CUTOFF_FREQ, dt_s, sd_rpm, last_sd_rpm,
@@ -259,16 +261,16 @@ void serial_debugger() {
   float eg_rpm = (current_eg_count - last_eg_count) *
                  ROTATIONS_PER_ENGINE_COUNT / dt_us * MICROSECONDS_PER_SECOND *
                  60.0;
-  float wl_rpm = (current_wl_count - last_wl_count) *
-                 ROTATIONS_PER_WHEEL_COUNT / dt_us * MICROSECONDS_PER_SECOND *
-                 60.0;
+  float ms_rpm = (current_wl_count - last_wl_count) *
+                 MEASURED_GEAR_ROTATIONS_PER_COUNT / dt_us *
+                 MICROSECONDS_PER_SECOND * 60.0;
 
   last_eg_count = current_eg_count;
   last_wl_count = current_wl_count;
   last_exec_us = start_us;
 
   Serial.printf("ms: %d ec: %d wc: %d ec_rpm: %f wc_rpm %f\n", millis(),
-                current_eg_count, current_wl_count, eg_rpm, wl_rpm);
+                current_eg_count, current_wl_count, eg_rpm, ms_rpm);
 }
 
 void setup() {
