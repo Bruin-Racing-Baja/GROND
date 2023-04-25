@@ -156,12 +156,13 @@ void control_function() {
   last_exec_us = start_us;
 
   float target_rpm = WHEEL_REF_HIGH_RPM;
-  if (filt_sd_rpm <= 0) {
-    target_rpm = WHEEL_REF_LOW_RPM;
-  } else if (filt_sd_rpm <= WHEEL_REF_BREAKPOINT_SECONDARY_RPM) {
-    target_rpm = WHEEL_REF_PIECEWISE_SLOPE * filt_sd_rpm + WHEEL_REF_LOW_RPM;
-  }
+  // if (filt_sd_rpm <= 0) {
+  //   target_rpm = WHEEL_REF_LOW_RPM;
+  // } else if (filt_sd_rpm <= WHEEL_REF_BREAKPOINT_SECONDARY_RPM) {
+  //   target_rpm = WHEEL_REF_PIECEWISE_SLOPE * filt_sd_rpm + WHEEL_REF_LOW_RPM;
+  // }
 
+  
   float error = target_rpm - filt_eg_rpm;
   float d_error = (error - last_error) / dt_s;
   float velocity_command =
