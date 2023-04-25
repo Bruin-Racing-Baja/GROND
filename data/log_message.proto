@@ -25,4 +25,7 @@ message LogMessage {
     float velocity_command = 22;
     float velocity_estimate = 23;
     float filtered_secondary_rpm = 24;
+    float filtered_engine_rpm = 25;
+    float engine_rpm_error = 26;
+    float engine_rpm_deriv_error = 27;
 }

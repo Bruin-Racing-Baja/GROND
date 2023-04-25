@@ -2,10 +2,10 @@
 #define constants_h
 
 // COMMONLY CHANGED PARAMETERS
-const int TARGET_RPM = 3300;
 const float PROPORTIONAL_GAIN = 0.056;
 const float DERIVATIVE_GAIN = 0;
-const float EG_RPM_BUTTERWORTH_CONSTANT = 0.4;
+const float EG_RPM_WINTER_CUTOFF_FREQ = 1.2;
+const float SD_RPM_WINTER_CUTOFF_FREQ = 0.8;
 const float VEL_LIMIT = 29.0;
 const float WHEEL_REF_LOW_RPM = 3000;
 const float WHEEL_REF_HIGH_RPM = 3650;
