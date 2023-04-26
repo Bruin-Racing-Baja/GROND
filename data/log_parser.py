@@ -128,18 +128,6 @@ def parseBinaryFile(path):
     return header_message, df
 
 
-def postProcessDataframe(df):
-    df["control_cycle_start_s"] = df["control_cycle_start_us"] / 1e6
-
-    df["secondary_rpm"] = df["wheel_rpm"] * secondary_ratio
-    df["wheel_rpm"] = df["wheel_rpm"] * wheel_ratio
-    df["wheel_mph"] = (df["wheel_rpm"] * wheel_diameter * np.pi) / (12 * 5280) * 60
-
-    df["actuator_position_mm"] = -df["shadow_count"] / encoder_cpr * pitch_angle
-    df["shift_ratio"] = df["secondary_rpm"] / df["engine_rpm"]
-    df["shift_ratio"] = df["shift_ratio"].clip(lower=0.2, upper=2)
-
-
 def addNormalizedColumns(df):
     for col in df:
         col_norm = f"norm_{col}"
@@ -153,3 +141,29 @@ def addNormalizedColumns(df):
                 df[col_norm] = (col_obj - np.min(col_obj)) / (
                     np.max(col_obj) - np.min(col_obj)
                 )
+
+
+def postProcessDataframe(df):
+    df["control_cycle_start_s"] = df["control_cycle_start_us"] / 1e6
+    df["control_cycle_dt_s"] = df["control_cycle_dt_us"] / 1e6
+
+    df["secondary_rpm"] = df["wheel_rpm"] * (57 / 18) * (45 / 17)
+    df["wheel_mph"] = (df["wheel_rpm"] * wheel_diameter * np.pi) / (12 * 5280) * 60
+
+    df["vehicle_position_feet"] = (
+        np.cumsum(df["wheel_mph"] * 5280 * df["control_cycle_dt_s"]) / 3600
+    )
+
+    df["actuator_position_mm"] = -df["shadow_count"] / encoder_cpr * pitch_angle
+
+    df["shift_ratio"] = df["secondary_rpm"] / df["engine_rpm"]
+    df["shift_ratio"] = df["shift_ratio"].clip(lower=0.2, upper=2)
+
+    addNormalizedColumns(df)
+
+
+def trimDataFrame(df, start_s=0, end_s=float("inf")):
+    df = df.loc[
+        (start_s < df["control_cycle_start_s"]) & (df["control_cycle_start_s"] < end_s)
+    ]
+    return df
