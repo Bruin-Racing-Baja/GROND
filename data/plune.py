@@ -4,9 +4,10 @@ import os
 from typing import List, NamedTuple
 
 import plotly.graph_objects as go
-from dash import Dash, Input, Output, callback, dcc, html, no_update
+from dash import Dash, Input, Output, callback, dash_table, dcc, html, no_update
 
 import log_parser
+import odrive_utils
 from figures import figuresToHTML
 
 
@@ -65,7 +66,14 @@ app.layout = html.Div(
         html.H1(children="Loading...", style={"textAlign": "center"}, id="title"),
         html.H4(children="Loading...", style={"textAlign": "center"}, id="subtitle"),
         dcc.Dropdown(paths, paths[-1], id="file-selection"),
-        html.Div([], id="graphs"),
+        html.Div(
+            dash_table.DataTable(),
+            id="odrive-errors",
+        ),
+        html.Div(
+            [],
+            id="graphs",
+        ),
     ]
 )
 
@@ -75,6 +83,7 @@ app.layout = html.Div(
         Output("title", "children"),
         Output("subtitle", "children"),
         Output("graphs", "children"),
+        Output("odrive-errors", "children"),
         Input("file-selection", "value"),
     ]
 )
@@ -108,7 +117,51 @@ def onFileSelection(path):
         )
         graphs.append(dcc.Graph(figure=fig))
 
-    return title, path, graphs
+    odrive_errors = odrive_utils.getODriveErrors(df)
+
+    if len(odrive_errors) != 0:
+        odrive_error_dict = {}
+        for odrive_error in odrive_errors:
+            timestamp_str = f"{odrive_error.timestamp:.03f}"
+            if not timestamp_str in odrive_error_dict:
+                odrive_error_dict[timestamp_str] = "\n".join(odrive_error.names)
+            else:
+                odrive_error_dict[timestamp_str] += "\n" + "\n".join(odrive_error.names)
+
+        odrive_error_rows = [
+            {"timestamp": timestamp, "errors": errors}
+            for timestamp, errors in odrive_error_dict.items()
+        ]
+
+        odrive_error_table = dash_table.DataTable(
+            id="datatable",
+            columns=[
+                {"name": "Timestamp", "id": "timestamp"},
+                {"name": "Errors", "id": "errors"},
+            ],
+            data=odrive_error_rows,
+            style_cell={"whiteSpace": "pre-line", "textAlign": "left"},
+            style_header={"backgroundColor": "#ff9999", "fontWeight": "bold"},
+            fill_width=False,
+        )
+    else:
+        odrive_error_table = None
+
+    return title, path, graphs, [odrive_error_table]
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Script description")
+
+    parser.add_argument(
+        "-e", "--export", action="store_true", help="Export all logs to html graphs"
+    )
+
+    args = parser.parse_args()
+
+    if args.export:
+        for path in paths:
+            header, df = log_parser.parseBinaryFile(path)
 
 
 if __name__ == "__main__":
