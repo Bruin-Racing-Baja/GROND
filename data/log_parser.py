@@ -8,7 +8,7 @@ import header_message_pb2
 import log_message_pb2
 from car_constants import *
 
-header_messag_id = 0
+header_message_id = 0
 log_message_id = 1
 
 
@@ -63,6 +63,30 @@ def filterFilesBySize(paths, size_kb):
     return [path for path in paths if os.path.getsize(path) >= size_kb * 1e3]
 
 
+def dumpToBinary(path, header, df):
+    with open(path, "wb") as bin_file:
+        serialized_header_message = header.SerializeToString()
+        message_type = header_message_id
+        message_length = len(serialized_header_message)
+        delimiter = f"{message_type:01X}{message_length:04X}"
+
+        bin_file.write(delimiter.encode())
+        bin_file.write(serialized_header_message)
+
+        rows = df.to_dict(orient="records")
+        log_message = log_message_pb2.LogMessage()
+        for row in rows:
+            json_format.ParseDict(row, log_message)
+            serialized_log_message = log_message.SerializeToString()
+
+            message_type = log_message_id
+            message_length = len(serialized_log_message)
+            delimiter = f"{message_type:01X}{message_length:04X}"
+
+            bin_file.write(delimiter.encode())
+            bin_file.write(serialized_log_message)
+
+
 def convertCSVToBinary(path):
     df = pd.read_csv(path, skiprows=1, header=None)
     if len(df.columns) == 21:
@@ -113,7 +137,7 @@ def parseBinaryFile(path):
             message_length = int(message_length_raw, 16)
             message = file.read(message_length)
 
-            if message_type == header_messag_id:
+            if message_type == header_message_id:
                 header_message.ParseFromString(message)
             elif message_type == log_message_id:
                 message_type = log_message_pb2.LogMessage.DESCRIPTOR

@@ -43,12 +43,17 @@ figure_infos = [
         x_axis="control_cycle_start_s", y_axis=["shadow_count"], title="Shadow Count"
     ),
     FigureInfo(
-        x_axis="control_cycle_start_s", y_axis=["wheel_mph"], title="Vehciel Speed"
+        x_axis="control_cycle_start_s", y_axis=["wheel_mph"], title="Vehicle Speed"
     ),
     FigureInfo(
         x_axis="control_cycle_start_s",
         y_axis=["vehicle_position_feet"],
         title="Vehcile Position",
+    ),
+    FigureInfo(
+        x_axis="control_cycle_start_s",
+        y_axis=["engine_rpm", "filtered_engine_rpm", "engine_rpm_deriv_error"],
+        title="Controller Error",
     ),
 ]
 
@@ -84,9 +89,11 @@ def onFileSelection(path):
     if title == "":
         title = "Timestamp Missing"
 
-    graphs = [dcc.Graph() for _ in range(len(figure_infos))]
-
+    graphs = []
     for i, figure_info in enumerate(figure_infos):
+        if not set(figure_info.y_axis).issubset(df.columns):
+            print(f'Column(s) Missing: Skipping "{figure_info.title}" for {path}')
+            continue
         fig = go.Figure()
         traces = [
             go.Scatter(x=df[figure_info.x_axis], y=df[y_axis], name=y_axis)
@@ -99,7 +106,7 @@ def onFileSelection(path):
             showlegend=True,
             margin=dict(l=20, r=20, t=60, b=20),
         )
-        graphs[i].figure = fig
+        graphs.append(dcc.Graph(figure=fig))
 
     return title, path, graphs
 
@@ -115,11 +122,15 @@ if __name__ == "__main__":
 
     if args.export:
         for path in paths:
-            print
             header, df = log_parser.parseBinaryFile(path)
             log_parser.postProcessDataframe(df)
             figures = []
             for i, figure_info in enumerate(figure_infos):
+                if not set(figure_info.y_axis).issubset(df.columns):
+                    print(
+                        f'Column(s) Missing: Skipping "{figure_info.title}" for {path}'
+                    )
+                    continue
                 figure = go.Figure()
                 traces = [
                     go.Scatter(x=df[figure_info.x_axis], y=df[y_axis], name=y_axis)
