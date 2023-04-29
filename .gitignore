@@ -1,2 +1,7 @@
 .pio
 .vscode
+
+data/logs
+data/*_pb2.py
+data/__pycache__
+data/graphs
