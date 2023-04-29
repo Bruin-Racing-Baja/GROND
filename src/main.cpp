@@ -50,6 +50,7 @@ int last_log_flush = 0;
 bool pressed = false;
 bool flushed = false;
 bool sd_init = false;
+float last_error = 0;
 
 // Geartooth counts
 volatile unsigned long eg_count = 0;
@@ -77,6 +78,7 @@ bool encode_string(pb_ostream_t* stream, const pb_field_t* field,
 void control_function() {
   u_int32_t start_us = micros();
   u_int32_t dt_us = start_us - last_exec_us;
+  float dt_s = dt_us / 1.e6;
 
   noInterrupts();
   long current_eg_count = eg_count;
@@ -90,13 +92,25 @@ void control_function() {
   float wl_rpm = (current_wl_count - last_wl_count) *
                  ROTATIONS_PER_WHEEL_COUNT / dt_us * MICROSECONDS_PER_SECOND *
                  60.0;
+  float wl_mph = wl_rpm * WHEEL_MPH_PER_RPM;
 
   last_eg_count = current_eg_count;
   last_wl_count = current_wl_count;
   last_exec_us = start_us;
 
-  float error = TARGET_RPM - eg_rpm;
-  float velocity_command = error * PROPORTIONAL_GAIN;
+  float target_rpm = WHEEL_REF_HIGH_RPM;
+  if (wl_mph <= 0) {
+    target_rpm = WHEEL_REF_LOW_RPM;
+  } else if (wl_mph <= WHEEL_REF_BREAKPOINT_MPH) {
+    target_rpm = WHEEL_REF_PIECEWISE_SLOPE * wl_mph + WHEEL_REF_LOW_RPM;
+  }
+
+  target_rpm = TARGET_RPM;
+  float error = target_rpm - eg_rpm;
+  float d_error = (error - last_error) / dt_s;
+  float velocity_command =
+      error * PROPORTIONAL_GAIN + d_error * DERIVATIVE_GAIN;
+  last_error = error;
 
   for (int i = 0; i < 5; i++) {
     button_states[i] = !digitalRead(BUTTON_PINS[i]);
