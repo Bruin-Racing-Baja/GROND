@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+message HeaderMessage {
+    string timestamp_human = 1;
+    uint32 clock_us = 2;
+    float p_gain = 3;
+    float d_gain = 4;
+    float engine_rpm_winter_cutoff_frequency = 5;
+    float secondary_rpm_winter_cutoff_frequency = 6;
+    float wheel_ref_low_rpm = 7;
+    float wheel_ref_high_rpm = 8;
+    float wheel_ref_breakpoint_secondary_rpm = 9;
+}

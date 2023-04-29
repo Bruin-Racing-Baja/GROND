@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+message LogMessage {
+    uint32 control_cycle_count = 1;
+    uint32 control_cycle_start_us = 2;
+    uint32 control_cycle_stop_us = 3;
+    uint32 control_cycle_dt_us = 4;
+    float wheel_rpm = 5;
+    float engine_rpm = 6;
+    uint32 engine_count = 7;
+    uint32 wheel_count = 8;
+    float target_rpm = 9;
+    float unclamped_velocity_command = 10;
+    uint32 last_heartbeat_ms = 11;
+    uint32 axis_error = 12;
+    uint32 motor_error = 13;
+    uint32 encoder_error = 14;
+    float voltage = 15;
+    float iq_measured = 16;
+    float iq_setpoint = 17;
+    float odrive_current = 18;
+    bool inbound_estop = 19;
+    bool outbound_estop = 20;
+    int32 shadow_count = 21;
+    float velocity_command = 22;
+    float velocity_estimate = 23;
+    float filtered_secondary_rpm = 24;
+    float filtered_engine_rpm = 25;
+    float engine_rpm_error = 26;
+    float engine_rpm_deriv_error = 27;
+}
