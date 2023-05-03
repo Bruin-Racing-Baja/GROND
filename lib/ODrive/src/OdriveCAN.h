@@ -36,6 +36,7 @@
 #define CAN_SET_LINEAR_COUNT 0x19
 #define CAN_SET_POSITION_GAIN 0x1A
 #define CAN_SET_VEL_GAINS 0x1B
+#define CAN_GET_GPIO_STATES 0x1C
 
 class OdriveCAN {
  public:
@@ -56,6 +57,7 @@ class OdriveCAN {
   int request_iq(int axis);
   int request_sensorless_estimates(int axis);
   int request_vbus_voltage();
+  int request_gpio_states();
 
   // Getters
   int get_readout(int axis, float report[19]);
@@ -79,6 +81,8 @@ class OdriveCAN {
   float get_sensorless_pos_estimate(int axis);
   float get_voltage();
   float get_current();
+  uint32_t get_gpio_states();
+  uint8_t get_gpio(uint8_t pin);
 
   // Commands
   int start_anticogging(int axis);
@@ -112,6 +116,7 @@ class OdriveCAN {
   float iq_setpoint[2], iq_measured[2];
   float sensorless_vel_estimate[2], sensorless_pos_estimate[2];
   float vbus_voltage, vbus_current;
+  uint32_t gpio_states;
 
   int send_command(int axis, int cmd_id, bool remote, uint8_t buf[8]);
   int send_command(int cmd_id, bool remote, uint8_t buf[8]);

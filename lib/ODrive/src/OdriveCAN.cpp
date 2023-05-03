@@ -94,6 +94,9 @@ void OdriveCAN::parse_message(const CAN_message_t& msg) {
       memcpy(&vbus_voltage, msg.buf, 4);
       memcpy(&vbus_current, msg.buf + 4, 4);
       break;
+    case CAN_GET_GPIO_STATES:
+      memcpy(&gpio_states, msg.buf, 4);
+      break;
   }
 }
 
@@ -109,7 +112,6 @@ int OdriveCAN::request_readout(int axis) {
   result += !!request_motor_error(axis);
   result += !!request_encoder_error(axis);
   result += !!request_sensorless_error(axis);
-
   result += !!request_encoder_count(axis);
   result += !!request_iq(axis);
   result += !!request_sensorless_estimates(axis);
@@ -145,6 +147,10 @@ int OdriveCAN::request_sensorless_estimates(int axis) {
 
 int OdriveCAN::request_vbus_voltage() {
   return send_empty_command(CAN_GET_VBUS_VOLTAGE, 1);
+}
+
+int OdriveCAN::request_gpio_states() {
+  return send_empty_command(CAN_GET_GPIO_STATES, 1);
 }
 
 // Getters
@@ -253,6 +259,14 @@ float OdriveCAN::get_voltage() {
 
 float OdriveCAN::get_current() {
   return vbus_current;
+}
+
+uint32_t OdriveCAN::get_gpio_states() {
+  return gpio_states;
+}
+
+uint8_t OdriveCAN::get_gpio(uint8_t pin) {
+  return (gpio_states >> pin) & 0x1;
 }
 
 // Commands

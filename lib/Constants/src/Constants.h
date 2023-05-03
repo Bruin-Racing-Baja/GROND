@@ -14,8 +14,6 @@ const int MODEL_NUMBER = model;
 // Pins
 const int EG_INTERRUPT_PIN = 10;
 const int WL_INTERRUPT_PIN = 11;
-const int ESTOP_IN_PIN = 33;
-const int ESTOP_OUT_PIN = 32;
 const int LED_1_PIN = 28;
 const int LED_2_PIN = 29;
 const int BUTTON_UP = 0;
@@ -25,6 +23,10 @@ const int BUTTON_RIGHT = 3;
 const int BUTTON_DOWN = 4;
 const int BUTTON_PINS[5] = {28, 29, 30, 31, 32};
 const int LED_PINS[5] = {2, 3, 4, 5};
+
+// ODrive Pins
+const int ESTOP_IN_ODRIVE_PIN = 7;
+const int ESTOP_OUT_ODRIVE_PIN = 8;
 
 // Physical constants
 const float ROTATIONS_PER_ENGINE_COUNT = 1.0 / 16;
