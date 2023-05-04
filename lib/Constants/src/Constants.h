@@ -6,7 +6,7 @@ const float PROPORTIONAL_GAIN = 0.0175;
 const float DERIVATIVE_GAIN = 0.007;
 const float EG_RPM_WINTER_CUTOFF_FREQ = 1.2;
 const float SD_RPM_WINTER_CUTOFF_FREQ = 0.8;
-const float VEL_LIMIT = 39.0;
+const float VEL_LIMIT = 29.0;
 const float WHEEL_REF_LOW_RPM = 2100;
 const float WHEEL_REF_HIGH_RPM = 2400;
 const float WHEEL_REF_BREAKPOINT_SECONDARY_RPM = 875;
@@ -43,6 +43,8 @@ const float SECONDARY_TO_WHEEL_ROTATIONS =
     (17.0 / 45.0) * (18.0 / 57.0);  // Actual rotation of wheel
 const float WHEEL_DIAMETER_IN = 23;
 const float WHEEL_MPH_PER_RPM = (WHEEL_DIAMETER_IN * M_PI) / (12 * 5280);
+const int BRAKE_LIGHT_SINGAL_CUTOFF = 100;
+const float VELOCITY_COMMAND_MAX_DIFFERENCE = 5.0;
 
 #elif model == 22
 #define dancing 13

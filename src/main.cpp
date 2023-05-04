@@ -122,7 +122,6 @@ void control_function() {
   long current_wl_count = wl_count;
   interrupts();
 
-  // First, calculate rpms
   float eg_rpm = (current_eg_count - last_eg_count) *
                  ROTATIONS_PER_ENGINE_COUNT / dt_us * MICROSECONDS_PER_SECOND *
                  60.0;
@@ -178,7 +177,7 @@ void control_function() {
 
   int brake_light_signal = analogRead(BRAKE_LIGHT);
 
-  if (brake_light_signal > 100)
+  if (brake_light_signal > BRAKE_LIGHT_SINGAL_CUTOFF)
     velocity_command += 30;
 
   float clamped_velocity_command = actuator.update_speed(velocity_command);
