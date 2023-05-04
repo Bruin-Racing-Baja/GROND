@@ -43,6 +43,9 @@ LogMessage log_message;
 uint32_t cycle_count = 0;
 u_int32_t last_exec_us;
 
+float proportional_gain = PROPORTIONAL_GAIN;
+float derivative_gain = DERIVATIVE_GAIN;
+
 long int last_eg_count = 0;
 long int last_wl_count = 0;
 
@@ -303,6 +306,19 @@ void setup() {
     digitalWrite(LED_PINS[0], HIGH);
     Serial.println("SD failed to init");
   }
+
+  File constants_file = SD.open(SD_CONSTANTS_FILE_NAME.c_str());
+  if (!constants_file) {
+    digitalWrite(LED_PINS[0], HIGH);
+    Serial.println("SD constants file not opened");
+  } else {
+    String p_gain_str = constants_file.readStringUntil('\n');
+    proportional_gain = strtof(p_gain_str.c_str(), nullptr);
+    String d_gain_str = constants_file.readStringUntil('\n');
+    derivative_gain = strtof(d_gain_str.c_str(), nullptr);
+  }
+  Serial.printf("P gain: %.4f\nD gain: %.4f", proportional_gain,
+                derivative_gain);
 
   // log file determination and initialization
   // TODO skip log if SD failed?

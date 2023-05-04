@@ -54,6 +54,7 @@ const int LOG_LEVEL = 4;
 const int CONTROL_FUNCTION_INTERVAL_US = 1e5;  //microseconds
 const int ODRIVE_BAUD_RATE = 115200;           //hz
 const int ACTUATOR_AXIS = 1;
+const String SD_CONSTANTS_FILE_NAME = "constants.txt";
 
 // Odrive constants
 const int ODRIVE_DEFAULT_TIMEOUT = 1000;  //ms
