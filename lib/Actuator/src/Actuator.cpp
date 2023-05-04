@@ -58,7 +58,7 @@ float Actuator::update_speed(float target_speed) {
  * @return the speed that is set
  */
 float Actuator::set_speed(float set_speed) {
-  set_speed = constrain(set_speed, -VEL_LIMIT, VEL_LIMIT);
+  set_speed = constrain(set_speed, -VEL_LIMIT_LOWER, VEL_LIMIT_UPPER);
   int can_error =
       odrive->set_state(ACTUATOR_AXIS, ODRIVE_VELOCITY_CONTROL_STATE);
   commanded_axis_state = ODRIVE_VELOCITY_CONTROL_STATE;
