@@ -162,7 +162,6 @@ void control_function() {
     target_rpm = WHEEL_REF_PIECEWISE_SLOPE * filt_sd_rpm + WHEEL_REF_LOW_RPM;
   }
 
-  
   float error = target_rpm - filt_eg_rpm;
   float d_error = (error - last_error) / dt_s;
   float velocity_command =
@@ -176,9 +175,11 @@ void control_function() {
   for (int i = 0; i < 5; i++) {
     last_button_states[i] = button_states[i];
   }
-  int brake_light_bits = analogRead(BRAKE_LIGHT);
 
-  if (brake_light_bits > 100) velocity_command += 30; //bias outward by 30 rotations per second when the breaklights are hit
+  int brake_light_signal = analogRead(BRAKE_LIGHT);
+
+  if (brake_light_signal > 100)
+    velocity_command += 30;
 
   float clamped_velocity_command = actuator.update_speed(velocity_command);
 
@@ -228,7 +229,7 @@ void control_function() {
   log_message.iq_measured = odrive_can.get_iq_measured(ACTUATOR_AXIS);
   log_message.iq_setpoint = odrive_can.get_iq_setpoint(ACTUATOR_AXIS);
   log_message.odrive_current = odrive_can.get_current();
-  log_message.inbound_estop = brake_light_bits; //actually break light
+  log_message.brake_light_signal = brake_light_signal;
   log_message.outbound_estop = false;
   log_message.shadow_count = odrive_can.get_shadow_count(ACTUATOR_AXIS);
   log_message.velocity_estimate = odrive_can.get_vel_estimate(ACTUATOR_AXIS);
