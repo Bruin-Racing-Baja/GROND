@@ -2,8 +2,8 @@
 #define constants_h
 
 // COMMONLY CHANGED PARAMETERS
-const float PROPORTIONAL_GAIN = 0.040;
-const float DERIVATIVE_GAIN = 0.040;
+const float PROPORTIONAL_GAIN_DEFAULT = 0.040;
+const float DERIVATIVE_GAIN_DEFAULT = 0.040;
 const float EG_RPM_WINTER_CUTOFF_FREQ = 1.2;
 const float SD_RPM_WINTER_CUTOFF_FREQ = 0.8;
 const float VEL_LIMIT_LOWER = 79.0;
@@ -54,7 +54,8 @@ const int LOG_LEVEL = 4;
 const int CONTROL_FUNCTION_INTERVAL_US = 1e5;  //microseconds
 const int ODRIVE_BAUD_RATE = 115200;           //hz
 const int ACTUATOR_AXIS = 1;
-const String SD_CONSTANTS_FILE_NAME = "constants.txt";
+const String INI_CONSTANTS_FILE_NAME = "constants.txt";
+const int JSON_BUFFER_SIZE = 256;
 
 // Odrive constants
 const int ODRIVE_DEFAULT_TIMEOUT = 1000;  //ms

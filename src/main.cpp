@@ -5,6 +5,7 @@
 // clang-format off
 #include <SPI.h>
 // clang-format on
+#include <ArduinoJson.h>
 #include <HardwareSerial.h>
 #include <SD.h>
 #include <TimeLib.h>
@@ -43,8 +44,8 @@ LogMessage log_message;
 uint32_t cycle_count = 0;
 u_int32_t last_exec_us;
 
-float proportional_gain = PROPORTIONAL_GAIN;
-float derivative_gain = DERIVATIVE_GAIN;
+float proportional_gain = PROPORTIONAL_GAIN_DEFAULT;
+float derivative_gain = DERIVATIVE_GAIN_DEFAULT;
 
 long int last_eg_count = 0;
 long int last_wl_count = 0;
@@ -168,7 +169,7 @@ void control_function() {
   float error = target_rpm - filt_eg_rpm;
   float d_error = (error - last_error) / dt_s;
   float velocity_command =
-      error * PROPORTIONAL_GAIN + d_error * DERIVATIVE_GAIN;
+      error * proportional_gain + d_error * derivative_gain;
   last_error = error;
 
   for (int i = 0; i < 5; i++) {
@@ -307,16 +308,23 @@ void setup() {
     Serial.println("SD failed to init");
   }
 
-  File constants_file = SD.open(SD_CONSTANTS_FILE_NAME.c_str());
-  if (!constants_file) {
-    digitalWrite(LED_PINS[0], HIGH);
-    Serial.println("SD constants file not opened");
+  File constants_file = SD.open(INI_CONSTANTS_FILE_NAME.c_str());
+  if (constants_file) {
+    StaticJsonDocument<JSON_BUFFER_SIZE> constants_json;
+    if (deserializeJson(constants_json, constants_file)) {
+      digitalWrite(LED_PINS[0], HIGH);
+      Serial.println("Failed to intake JSON");
+    }
+
+    proportional_gain = constants_json["p_gain"].as<float>();
+    derivative_gain = constants_json["d_gain"].as<float>();
+
+    constants_file.close();
   } else {
-    String p_gain_str = constants_file.readStringUntil('\n');
-    proportional_gain = strtof(p_gain_str.c_str(), nullptr);
-    String d_gain_str = constants_file.readStringUntil('\n');
-    derivative_gain = strtof(d_gain_str.c_str(), nullptr);
+    digitalWrite(LED_PINS[0], HIGH);
+    Serial.println("Constants json could not be opened");
   }
+
   Serial.printf("P gain: %.4f\nD gain: %.4f", proportional_gain,
                 derivative_gain);
 
@@ -345,8 +353,8 @@ void setup() {
 
     get_time_string((char*)header_message.timestamp_human.arg);
     header_message.clock_us = micros();
-    header_message.p_gain = PROPORTIONAL_GAIN;
-    header_message.d_gain = DERIVATIVE_GAIN;
+    header_message.p_gain = proportional_gain;
+    header_message.d_gain = derivative_gain;
     header_message.engine_rpm_winter_cutoff_frequency =
         EG_RPM_WINTER_CUTOFF_FREQ;
     header_message.secondary_rpm_winter_cutoff_frequency =
