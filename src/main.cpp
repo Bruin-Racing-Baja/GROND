@@ -162,7 +162,6 @@ void control_function() {
     target_rpm = WHEEL_REF_PIECEWISE_SLOPE * filt_sd_rpm + WHEEL_REF_LOW_RPM;
   }
 
-  
   float error = target_rpm - filt_eg_rpm;
   float d_error = (error - last_error) / dt_s;
   float velocity_command =
@@ -172,15 +171,29 @@ void control_function() {
   for (int i = 0; i < 5; i++) {
     button_states[i] = !digitalRead(BUTTON_PINS[i]);
   }
+  /*
+  if (button_states[BUTTON_RIGHT] && !last_button_states[BUTTON_RIGHT]) {
+    actuator.update_speed(2);
+  } else if (button_states[BUTTON_LEFT] && !last_button_states[BUTTON_LEFT]) {
+    actuator.update_speed(-2);
+  }
+  if (button_states[BUTTON_CENTER]) {
+    actuator.update_speed(0);
+  }
+  */
   // button usage
   for (int i = 0; i < 5; i++) {
     last_button_states[i] = button_states[i];
   }
   int brake_light_bits = analogRead(BRAKE_LIGHT);
 
-  if (brake_light_bits > 100) velocity_command += 30; //bias outward by 30 rotations per second when the breaklights are hit
-
-  float clamped_velocity_command = actuator.update_speed(velocity_command);
+  float brake_offset = 0;
+  if (brake_light_bits > 100) {
+    //bias outward by 30 rotations per second when the breaklights are hit
+    brake_offset = 50;
+  }
+  float clamped_velocity_command =
+      actuator.update_speed(velocity_command, brake_offset);
 
   u_int32_t stop_us = micros();
   int can_error = 0;
@@ -212,7 +225,6 @@ void control_function() {
   log_message.control_cycle_start_us = start_us;
   log_message.control_cycle_stop_us = stop_us;
   log_message.control_cycle_dt_us = dt_us;
-  log_message.control_cycle_dt_us = dt_us;
   log_message.wheel_rpm = wl_rpm;
   log_message.engine_rpm = eg_rpm;
   log_message.engine_count = current_eg_count;
@@ -228,7 +240,7 @@ void control_function() {
   log_message.iq_measured = odrive_can.get_iq_measured(ACTUATOR_AXIS);
   log_message.iq_setpoint = odrive_can.get_iq_setpoint(ACTUATOR_AXIS);
   log_message.odrive_current = odrive_can.get_current();
-  log_message.inbound_estop = brake_light_bits; //actually break light
+  log_message.inbound_estop = brake_light_bits;  //actually break light
   log_message.outbound_estop = false;
   log_message.shadow_count = odrive_can.get_shadow_count(ACTUATOR_AXIS);
   log_message.velocity_estimate = odrive_can.get_vel_estimate(ACTUATOR_AXIS);
