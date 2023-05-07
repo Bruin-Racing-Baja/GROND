@@ -112,6 +112,7 @@ float winter_filter(float cutoff_freq, float dt_s, float x, float last_x,
 }
 
 //ඞ
+int32_t start_shadow_count;
 void control_function() {
   u_int32_t start_us = micros();
   u_int32_t dt_us = start_us - last_exec_us;
@@ -192,13 +193,19 @@ void control_function() {
     //bias outward by 30 rotations per second when the breaklights are hit
     brake_offset = 50;
   }
+  odrive_can.request_encoder_count(ACTUATOR_AXIS);
+  int32_t cur_shadow_count = odrive_can.get_shadow_count(ACTUATOR_AXIS);
+  if (cur_shadow_count >= start_shadow_count) {
+    brake_offset = 0;
+    velocity_command = (velocity_command > 0) ? 0 : velocity_command;
+  }
   float clamped_velocity_command =
       actuator.update_speed(velocity_command, brake_offset);
 
   u_int32_t stop_us = micros();
   int can_error = 0;
   can_error += !!odrive_can.request_vbus_voltage();
-  can_error += !!odrive_can.request_encoder_count(ACTUATOR_AXIS);
+  //can_error += !!odrive_can.request_encoder_count(ACTUATOR_AXIS);
   can_error += !!odrive_can.request_motor_error(ACTUATOR_AXIS);
   can_error += !!odrive_can.request_encoder_count(ACTUATOR_AXIS);
   can_error += !!odrive_can.request_iq(ACTUATOR_AXIS);
@@ -375,6 +382,12 @@ void setup() {
     actuator.encoder_index_search() ? Serial.println("Complete")
                                     : Serial.println("Failed");
   }
+
+  // BAD STICKY OUTBOUND HOTFIX
+  odrive_can.request_encoder_count(ACTUATOR_AXIS);
+  delay(1000);
+  start_shadow_count = odrive_can.get_shadow_count(ACTUATOR_AXIS);
+
   digitalWrite(LED_PINS[3], HIGH);
 
   // Attach wl, eg interrupts
