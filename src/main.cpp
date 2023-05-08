@@ -191,7 +191,7 @@ void control_function() {
   float brake_offset = 0;
   if (brake_light_bits > 100) {
     //bias outward by 30 rotations per second when the breaklights are hit
-    brake_offset = 50;
+    brake_offset = 200;
   }
   odrive_can.request_encoder_count(ACTUATOR_AXIS);
   int32_t cur_shadow_count = odrive_can.get_shadow_count(ACTUATOR_AXIS);

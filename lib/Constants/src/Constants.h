@@ -9,15 +9,13 @@ const float DERIVATIVE_GAIN = 0.00125;
 const float WHEEL_REF_LOW_RPM = 2800;
 const float WHEEL_REF_HIGH_RPM = 3100;
 */
-const float PROPORTIONAL_GAIN = 0.023
-
-    ;
+const float PROPORTIONAL_GAIN = 0.01;
 const float DERIVATIVE_GAIN = 0.0;  // 0.00125;
 const float EG_RPM_WINTER_CUTOFF_FREQ = 1.2;
 const float SD_RPM_WINTER_CUTOFF_FREQ = 0.8;
 const float VEL_LIMIT = 39.0;
-const float WHEEL_REF_LOW_RPM = 2800;
-const float WHEEL_REF_HIGH_RPM = 3000;
+const float WHEEL_REF_LOW_RPM = 3000;
+const float WHEEL_REF_HIGH_RPM = 3200;
 const float WHEEL_REF_BREAKPOINT_SECONDARY_RPM = 875;
 const float WHEEL_REF_PIECEWISE_SLOPE =
     ((WHEEL_REF_HIGH_RPM - WHEEL_REF_LOW_RPM) /
