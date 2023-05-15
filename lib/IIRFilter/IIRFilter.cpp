@@ -1,5 +1,7 @@
 #include "IIRFilter.h"
-#include <Arduino.h>
+#include <malloc.h>
+#include <stdint.h>
+
 IIRFilter::IIRFilter(const float b_[], const float a_[], uint32_t M_,
                      uint32_t N_) {
   M = M_;

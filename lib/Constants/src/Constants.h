@@ -1,5 +1,6 @@
 #ifndef constants_h
 #define constants_h
+#include <stdint.h>
 
 // COMMONLY CHANGED PARAMETERS
 const float PROPORTIONAL_GAIN = 0.056;
