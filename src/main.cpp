@@ -6,6 +6,7 @@
 #include <SPI.h>
 // clang-format on
 #include <HardwareSerial.h>
+#include <IIRFilter.h>
 #include <SD.h>
 #include <TimeLib.h>
 #include <header_message.pb.h>
@@ -87,6 +88,12 @@ bool encode_string(pb_ostream_t* stream, const pb_field_t* field,
   return pb_encode_string(stream, (uint8_t*)str, strlen(str));
 }
 
+IIRFilter engine_rpm_filter(ENGINE_RPM_FILTER_B, ENGINE_RPM_FILTER_A,
+                            ENGINE_RPM_FILTER_M, ENGINE_RPM_FILTER_N);
+
+IIRFilter secondary_rpm_filter(SECONDARY_RPM_FILTER_B, SECONDARY_RPM_FILTER_A,
+                               SECONDARY_RPM_FILTER_M, SECONDARY_RPM_FILTER_N);
+
 // 2nd-order lowpass butterworth filter (https://gist.github.com/moorepants/bfea1dc3d1d90bdad2b5623b4a9e9bee)
 float winter_filter(float cutoff_freq, float dt_s, float x, float last_x,
                     float last_last_x, float last_filt_x,
@@ -140,6 +147,9 @@ void control_function() {
   float filt_eg_rpm =
       winter_filter(EG_RPM_WINTER_CUTOFF_FREQ, dt_s, eg_rpm, last_eg_rpm,
                     last_last_eg_rpm, last_filt_eg_rpm, last_last_filt_eg_rpm);
+
+  float filt_eg_rpm2 = engine_rpm_filter.update(eg_rpm);
+  float filt_sd_rpm2 = secondary_rpm_filter.update(sd_rpm);
 
   last_last_sd_rpm = last_sd_rpm;
   last_sd_rpm = sd_rpm;
