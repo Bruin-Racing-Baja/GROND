@@ -151,6 +151,8 @@ void control_function() {
   float filt_eg_rpm2 = engine_rpm_filter.update(eg_rpm);
   float filt_sd_rpm2 = secondary_rpm_filter.update(sd_rpm);
 
+  Serial.printf("%f, %f\n", filt_eg_rpm, filt_eg_rpm2);
+
   last_last_sd_rpm = last_sd_rpm;
   last_sd_rpm = sd_rpm;
   last_last_filt_sd_rpm = last_filt_sd_rpm;
