@@ -47,16 +47,6 @@ u_int32_t last_exec_us;
 long int last_eg_count = 0;
 long int last_wl_count = 0;
 
-float last_last_eg_rpm = 0;
-float last_eg_rpm = 0;
-float last_last_filt_eg_rpm = 0;
-float last_filt_eg_rpm = 0;
-
-float last_last_sd_rpm = 0;
-float last_sd_rpm = 0;
-float last_last_filt_sd_rpm = 0;
-float last_filt_sd_rpm = 0;
-
 float last_error = 0;
 
 bool button_states[5];
@@ -94,30 +84,6 @@ IIRFilter engine_rpm_filter(ENGINE_RPM_FILTER_B, ENGINE_RPM_FILTER_A,
 IIRFilter secondary_rpm_filter(SECONDARY_RPM_FILTER_B, SECONDARY_RPM_FILTER_A,
                                SECONDARY_RPM_FILTER_M, SECONDARY_RPM_FILTER_N);
 
-// 2nd-order lowpass butterworth filter (https://gist.github.com/moorepants/bfea1dc3d1d90bdad2b5623b4a9e9bee)
-float winter_filter(float cutoff_freq, float dt_s, float x, float last_x,
-                    float last_last_x, float last_filt_x,
-                    float last_last_filt_x) {
-  float sample_freq = 1 / dt_s;
-  cutoff_freq = tan(M_PI * cutoff_freq / sample_freq);
-
-  float K1 = sqrt(2) * cutoff_freq;
-  float K2 = cutoff_freq * cutoff_freq;
-
-  float a0 = K2 / (1 + K1 + K2);
-  float a1 = 2 * a0;
-  float a2 = a0;
-
-  float K3 = a1 / K2;
-
-  float b1 = -a1 + K3;
-  float b2 = 1 - a1 - K3;
-
-  float filt_x = a0 * x + a1 * last_x + a2 * last_last_x + b1 * last_filt_x +
-                 b2 * last_last_filt_x;
-  return filt_x;
-}
-
 //ඞ
 void control_function() {
   u_int32_t start_us = micros();
@@ -140,28 +106,8 @@ void control_function() {
   float wl_rpm = ms_rpm * MEASURED_GEAR_TO_SECONDARY_ROTATIONS *
                  SECONDARY_TO_WHEEL_ROTATIONS;
 
-  float filt_sd_rpm =
-      winter_filter(SD_RPM_WINTER_CUTOFF_FREQ, dt_s, sd_rpm, last_sd_rpm,
-                    last_last_sd_rpm, last_filt_sd_rpm, last_last_filt_sd_rpm);
-
-  float filt_eg_rpm =
-      winter_filter(EG_RPM_WINTER_CUTOFF_FREQ, dt_s, eg_rpm, last_eg_rpm,
-                    last_last_eg_rpm, last_filt_eg_rpm, last_last_filt_eg_rpm);
-
-  float filt_eg_rpm2 = engine_rpm_filter.update(eg_rpm);
-  float filt_sd_rpm2 = secondary_rpm_filter.update(sd_rpm);
-
-  Serial.printf("%f, %f\n", filt_eg_rpm, filt_eg_rpm2);
-
-  last_last_sd_rpm = last_sd_rpm;
-  last_sd_rpm = sd_rpm;
-  last_last_filt_sd_rpm = last_filt_sd_rpm;
-  last_filt_sd_rpm = filt_sd_rpm;
-
-  last_last_eg_rpm = last_eg_rpm;
-  last_eg_rpm = eg_rpm;
-  last_last_filt_eg_rpm = last_filt_eg_rpm;
-  last_filt_eg_rpm = filt_eg_rpm;
+  float filt_eg_rpm = engine_rpm_filter.update(eg_rpm);
+  float filt_sd_rpm = secondary_rpm_filter.update(sd_rpm);
 
   last_eg_count = current_eg_count;
   last_wl_count = current_wl_count;
@@ -204,7 +150,7 @@ void control_function() {
       "can_er: %d, vel_cmd: "
       "%.2f (%.2f), w_rpm: %.2f, e_rpm: %.2f, w_cnt: %d, e_cnt: "
       "%d, "
-      "ax_err: %d, mtr_err: %d, enc_err: %d\n",
+      "ax_err: %d, mtr_err: %d, enc_err: %d, filt_eg_rpm: %.2f\n",
       millis(), odrive_can.get_voltage(), odrive_can.get_current(),
       odrive_can.get_iq_setpoint(ACTUATOR_AXIS),
       odrive_can.get_iq_measured(ACTUATOR_AXIS),
@@ -214,7 +160,7 @@ void control_function() {
       current_wl_count, current_eg_count,
       odrive_can.get_axis_error(ACTUATOR_AXIS),
       odrive_can.get_motor_error(ACTUATOR_AXIS),
-      odrive_can.get_encoder_error(ACTUATOR_AXIS));
+      odrive_can.get_encoder_error(ACTUATOR_AXIS), filt_eg_rpm);
 
   log_message.control_cycle_count = cycle_count;
   log_message.control_cycle_start_us = start_us;
