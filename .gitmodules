@@ -4,3 +4,6 @@
 [submodule "lib/PIER"]
 	path = lib/PIER
 	url = https://github.com/Bruin-Racing-Baja/PIER.git
+[submodule "PLUNE"]
+	path = PLUNE
+	url = https://github.com/Bruin-Racing-Baja/PLUNE.git
