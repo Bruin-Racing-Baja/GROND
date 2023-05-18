@@ -1,5 +1,6 @@
 #ifndef constants_h
 #define constants_h
+#include <stdint.h>
 
 // COMMONLY CHANGED PARAMETERS
 /*
@@ -42,7 +43,7 @@ const int LED_PINS[5] = {2, 3, 4, 5};
 const int BRAKE_LIGHT = 26;
 
 // Physical constants
-const float ROTATIONS_PER_ENGINE_COUNT = 1.0 / 16;
+const float ROTATIONS_PER_ENGINE_COUNT = 1.0 / 50;
 const float MEASURED_GEAR_ROTATIONS_PER_COUNT =
     1.0 / 6;  // Actual rotation of wheel
 const float MEASURED_GEAR_TO_SECONDARY_ROTATIONS = 45.0 / 17;
@@ -83,5 +84,20 @@ const int LOG_MESSAGE_ID = 1;
 
 // Serial debug settings
 const int SERIAL_DEBUGGER_INTERVAL_US = 100000;
+
+// Generated using scipy.signal.butter (TODO: add butterworth filter class)
+const float ENGINE_RPM_FILTER_B[] = {0.0913149, 0.1826298, 0.0913149};
+const float ENGINE_RPM_FILTER_A[] = {1., -0.98240579, 0.34766539};
+const float SECONDARY_RPM_FILTER_B[] = {0.0461318, 0.0922636, 0.0461318};
+const float SECONDARY_RPM_FILTER_A[] = {1., -1.30728503, 0.49181224};
+
+const uint32_t ENGINE_RPM_FILTER_M =
+    sizeof(ENGINE_RPM_FILTER_B) / sizeof(ENGINE_RPM_FILTER_B[0]);
+const uint32_t ENGINE_RPM_FILTER_N =
+    sizeof(ENGINE_RPM_FILTER_A) / sizeof(ENGINE_RPM_FILTER_A[0]);
+const uint32_t SECONDARY_RPM_FILTER_M =
+    sizeof(SECONDARY_RPM_FILTER_B) / sizeof(SECONDARY_RPM_FILTER_B[0]);
+const uint32_t SECONDARY_RPM_FILTER_N =
+    sizeof(SECONDARY_RPM_FILTER_A) / sizeof(SECONDARY_RPM_FILTER_A[0]);
 
 #endif
