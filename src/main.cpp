@@ -49,6 +49,8 @@ uint32_t last_wl_count = 0;
 float last_error = 0;
 volatile uint32_t eg_count = 0;
 volatile uint32_t wl_count = 0;
+bool button_states[5];
+bool last_button_states[5];
 
 // Real Time Clock functions
 time_t get_teensy3_time() {
@@ -112,11 +114,28 @@ void control_function() {
       error * PROPORTIONAL_GAIN + d_error * DERIVATIVE_GAIN;
   last_error = error;
 
-  // Brake biasing and actuator command
+  // Brake biasing
   int brake_light_signal = analogRead(BRAKE_LIGHT);
   float brake_bias = 0;
   if (brake_light_signal > 100)
     brake_bias = 50;
+
+  // Button usage
+  velocity_command = 0;
+  brake_bias = 0;
+  for (int i = 0; i < 5; i++) {
+    button_states[i] = !digitalRead(BUTTON_PINS[i]);
+  }
+  if (button_states[BUTTON_RIGHT]) {
+    velocity_command = -80;
+  } else if (button_states[BUTTON_LEFT]) {
+    velocity_command = 80;
+  }
+  for (int i = 0; i < 5; i++) {
+    last_button_states[i] = button_states[i];
+  }
+
+  // Set actuator command
   float clamped_velocity_command =
       actuator.update_speed(velocity_command, brake_bias);
 
