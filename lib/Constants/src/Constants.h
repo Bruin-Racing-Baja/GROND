@@ -2,10 +2,24 @@
 #define constants_h
 
 // COMMONLY CHANGED PARAMETERS
-const int TARGET_RPM = 3300;
-const float PROPORTIONAL_GAIN = 0.056;
-const float EG_RPM_BUTTERWORTH_CONSTANT = 0.4;
-const float VEL_LIMIT = 29.0;
+/*
+Maneuverability:
+const float PROPORTIONAL_GAIN = 0.03;
+const float DERIVATIVE_GAIN = 0.00125;
+const float WHEEL_REF_LOW_RPM = 2800;
+const float WHEEL_REF_HIGH_RPM = 3100;
+*/
+const float PROPORTIONAL_GAIN = 0.02;
+const float DERIVATIVE_GAIN = 0.00125;
+const float EG_RPM_WINTER_CUTOFF_FREQ = 1.2;
+const float SD_RPM_WINTER_CUTOFF_FREQ = 0.8;
+const float VEL_LIMIT = 39.0;
+const float WHEEL_REF_LOW_RPM = 2100;
+const float WHEEL_REF_HIGH_RPM = 2300;
+const float WHEEL_REF_BREAKPOINT_SECONDARY_RPM = 875;
+const float WHEEL_REF_PIECEWISE_SLOPE =
+    ((WHEEL_REF_HIGH_RPM - WHEEL_REF_LOW_RPM) /
+     WHEEL_REF_BREAKPOINT_SECONDARY_RPM);
 #define model 21
 
 // Per car constants
@@ -25,12 +39,17 @@ const int BUTTON_RIGHT = 3;
 const int BUTTON_DOWN = 4;
 const int BUTTON_PINS[5] = {28, 29, 30, 31, 32};
 const int LED_PINS[5] = {2, 3, 4, 5};
+const int BRAKE_LIGHT = 26;
 
 // Physical constants
 const float ROTATIONS_PER_ENGINE_COUNT = 1.0 / 16;
-const float ROTATIONS_PER_WHEEL_COUNT = 1.0 / 12;  // Actual rotation of wheel
-const float SECONDARY_ROTATIONS_PER_WHEEL_COUNT =
-    1.0 / ((45 / 17) * (57 / 18));  //Rotation of secondary
+const float MEASURED_GEAR_ROTATIONS_PER_COUNT =
+    1.0 / 6;  // Actual rotation of wheel
+const float MEASURED_GEAR_TO_SECONDARY_ROTATIONS = 45.0 / 17;
+const float SECONDARY_TO_WHEEL_ROTATIONS =
+    (17.0 / 45.0) * (18.0 / 57.0);  // Actual rotation of wheel
+const float WHEEL_DIAMETER_IN = 23;
+const float WHEEL_MPH_PER_RPM = (WHEEL_DIAMETER_IN * M_PI) / (12 * 5280);
 
 #elif model == 22
 #define dancing 13
