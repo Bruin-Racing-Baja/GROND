@@ -21,6 +21,7 @@
 static constexpr int kMode = OPERATING_MODE;
 static constexpr int kWaitSerial = 0;
 static constexpr int kHomeOnStartup = 1;  // Controls index search and home
+static constexpr bool kSerialDebugging = 1;
 
 // Object Declarations
 OdriveCAN odrive_can;
@@ -39,24 +40,19 @@ void odrive_can_parse(const CAN_message_t& msg) {
 }
 
 // Control Function Variables
-uint8_t buffer[256];
+uint8_t buffer[512];
 LogMessage log_message;
 uint32_t cycle_count = 0;
-u_int32_t last_sample_time_us;
-long int last_eg_count = 0;
-long int last_wl_count = 0;
+uint32_t last_sample_time_us;
+uint32_t last_eg_count = 0;
+uint32_t last_wl_count = 0;
 float last_error = 0;
-bool sd_init = false;
-volatile unsigned long eg_count = 0;
-volatile unsigned long wl_count = 0;
+volatile uint32_t eg_count = 0;
+volatile uint32_t wl_count = 0;
 
 // Real Time Clock functions
 time_t get_teensy3_time() {
   return Teensy3Clock.get();
-}
-void get_time_string(char* buf) {
-  sprintf(buf, "%04d-%02d-%02d %02d:%02d:%02d", year(), month(), day(), hour(),
-          minute(), second());
 }
 
 // Protobuf encoding function
@@ -71,15 +67,15 @@ bool encode_string(pb_ostream_t* stream, const pb_field_t* field,
 
 //ඞ
 void control_function() {
-  u_int32_t start_us = micros();
+  uint32_t start_us = micros();
 
   // Record counts from engine and secondary sensors
   noInterrupts();
-  long current_eg_count = eg_count;
-  long current_wl_count = wl_count;
+  uint32_t current_eg_count = eg_count;
+  uint32_t current_wl_count = wl_count;
   interrupts();
-  u_int32_t sample_time_us = micros();
-  u_int32_t dt_us = sample_time_us - last_sample_time_us;
+  uint32_t sample_time_us = micros();
+  uint32_t dt_us = sample_time_us - last_sample_time_us;
   last_sample_time_us = sample_time_us;
   float dt_s = dt_us / 1.e6;
 
@@ -124,7 +120,7 @@ void control_function() {
   float clamped_velocity_command =
       actuator.update_speed(velocity_command, brake_bias);
 
-  u_int32_t stop_us = micros();
+  uint32_t stop_us = micros();
 
   // Logging
   int can_error = 0;
@@ -134,23 +130,25 @@ void control_function() {
   can_error += !!odrive_can.request_encoder_count(ACTUATOR_AXIS);
   can_error += !!odrive_can.request_iq(ACTUATOR_AXIS);
 
-  Serial.printf(
-      "ms: %d, vltg: %.2f, crnt: %.2f, iq_set: %.2f, iq_m: %.2f, "
-      "hrt: %d, enc: %d, "
-      "can_er: %d, vel_cmd: "
-      "%.2f (%.2f), w_rpm: %.2f, e_rpm: %.2f, w_cnt: %d, e_cnt: "
-      "%d, "
-      "ax_err: %d, mtr_err: %d, enc_err: %d, filt_eg_rpm: %.2f\n",
-      millis(), odrive_can.get_voltage(), odrive_can.get_current(),
-      odrive_can.get_iq_setpoint(ACTUATOR_AXIS),
-      odrive_can.get_iq_measured(ACTUATOR_AXIS),
-      odrive_can.get_time_since_heartbeat_ms(),
-      odrive_can.get_shadow_count(ACTUATOR_AXIS), can_error,
-      clamped_velocity_command, velocity_command, wl_rpm, eg_rpm,
-      current_wl_count, current_eg_count,
-      odrive_can.get_axis_error(ACTUATOR_AXIS),
-      odrive_can.get_motor_error(ACTUATOR_AXIS),
-      odrive_can.get_encoder_error(ACTUATOR_AXIS), filt_eg_rpm);
+  if (kSerialDebugging) {
+    Serial.printf(
+        "ms: %d, vltg: %.2f, crnt: %.2f, iq_set: %.2f, iq_m: %.2f, "
+        "hrt: %d, enc: %d, "
+        "can_er: %d, vel_cmd: "
+        "%.2f (%.2f), w_rpm: %.2f, e_rpm: %.2f, w_cnt: %d, e_cnt: "
+        "%d, "
+        "ax_err: %d, mtr_err: %d, enc_err: %d, filt_eg_rpm: %.2f\n",
+        millis(), odrive_can.get_voltage(), odrive_can.get_current(),
+        odrive_can.get_iq_setpoint(ACTUATOR_AXIS),
+        odrive_can.get_iq_measured(ACTUATOR_AXIS),
+        odrive_can.get_time_since_heartbeat_ms(),
+        odrive_can.get_shadow_count(ACTUATOR_AXIS), can_error,
+        clamped_velocity_command, velocity_command, wl_rpm, eg_rpm,
+        current_wl_count, current_eg_count,
+        odrive_can.get_axis_error(ACTUATOR_AXIS),
+        odrive_can.get_motor_error(ACTUATOR_AXIS),
+        odrive_can.get_encoder_error(ACTUATOR_AXIS), filt_eg_rpm);
+  }
 
   log_message.control_cycle_count = cycle_count;
   log_message.control_cycle_start_us = start_us;
@@ -192,19 +190,18 @@ void control_function() {
 
   if (cycle_count % NUMBER_CYCLES_PER_SD_FLUSH == 0) {
     log_file.flush();
-    digitalToggle(LED_PINS[32]);
   }
 
   cycle_count++;
 }
 
 void serial_debugger() {
-  u_int32_t start_us = micros();
-  u_int32_t dt_us = start_us - last_sample_time_us;
+  uint32_t start_us = micros();
+  uint32_t dt_us = start_us - last_sample_time_us;
 
   noInterrupts();
-  long current_eg_count = eg_count;
-  long current_wl_count = wl_count;
+  uint32_t current_eg_count = eg_count;
+  uint32_t current_wl_count = wl_count;
   interrupts();
 
   float eg_rpm = (current_eg_count - last_eg_count) *
@@ -242,8 +239,7 @@ void setup() {
   }
 
   // SD initialization
-  sd_init = SD.sdfs.begin(SdioConfig(DMA_SDIO));
-  if (!sd_init) {
+  if (!SD.sdfs.begin(SdioConfig(DMA_SDIO))) {
     digitalWrite(LED_PINS[0], HIGH);
     Serial.println("SD failed to init");
   }
@@ -271,7 +267,9 @@ void setup() {
     header_message.timestamp_human.arg = malloc(20);
     header_message.timestamp_human.funcs.encode = &encode_string;
 
-    get_time_string((char*)header_message.timestamp_human.arg);
+    sprintf((char*)header_message.timestamp_human.arg,
+            "%04d-%02d-%02d %02d:%02d:%02d", year(), month(), day(), hour(),
+            minute(), second());
     header_message.clock_us = micros();
     header_message.p_gain = PROPORTIONAL_GAIN;
     header_message.d_gain = DERIVATIVE_GAIN;
@@ -291,6 +289,8 @@ void setup() {
     log_file.printf("%01X", HEADER_MESSAGE_ID);
     log_file.printf("%04X", message_length);
     log_file.write(buffer, message_length);
+
+    free(header_message.timestamp_human.arg);
 
     Serial.printf("Logging at: %s\n", log_name);
   } else {
@@ -317,7 +317,7 @@ void setup() {
       WL_INTERRUPT_PIN, []() { ++wl_count; }, RISING);
 
   // Attach operating mode interrupt
-  Serial.print("Attaching interrupt mode " + String(kMode) + "\n");
+  Serial.printf("Attaching interrupt mode %d\n", kMode);
   last_sample_time_us = micros();
   switch (kMode) {
     case OPERATING_MODE:
