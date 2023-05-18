@@ -3,14 +3,20 @@
 #include <stdint.h>
 
 // COMMONLY CHANGED PARAMETERS
-const float PROPORTIONAL_GAIN = 0.056;
-const float DERIVATIVE_GAIN = 0;
-
+/*
+Maneuverability:
+const float PROPORTIONAL_GAIN = 0.03;
+const float DERIVATIVE_GAIN = 0.00125;
+const float WHEEL_REF_LOW_RPM = 2800;
+const float WHEEL_REF_HIGH_RPM = 3100;
+*/
+const float PROPORTIONAL_GAIN = 0.02;
+const float DERIVATIVE_GAIN = 0.00125;
 const float EG_RPM_WINTER_CUTOFF_FREQ = 1.2;
 const float SD_RPM_WINTER_CUTOFF_FREQ = 0.8;
-const float VEL_LIMIT = 29.0;
-const float WHEEL_REF_LOW_RPM = 3000;
-const float WHEEL_REF_HIGH_RPM = 3650;
+const float VEL_LIMIT = 39.0;
+const float WHEEL_REF_LOW_RPM = 2100;
+const float WHEEL_REF_HIGH_RPM = 2300;
 const float WHEEL_REF_BREAKPOINT_SECONDARY_RPM = 875;
 const float WHEEL_REF_PIECEWISE_SLOPE =
     ((WHEEL_REF_HIGH_RPM - WHEEL_REF_LOW_RPM) /
@@ -34,6 +40,7 @@ const int BUTTON_RIGHT = 3;
 const int BUTTON_DOWN = 4;
 const int BUTTON_PINS[5] = {28, 29, 30, 31, 32};
 const int LED_PINS[5] = {2, 3, 4, 5};
+const int BRAKE_LIGHT = 26;
 
 // Physical constants
 const float ROTATIONS_PER_ENGINE_COUNT = 1.0 / 50;

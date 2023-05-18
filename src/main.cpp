@@ -47,6 +47,16 @@ u_int32_t last_exec_us;
 long int last_eg_count = 0;
 long int last_wl_count = 0;
 
+float last_last_eg_rpm = 0;
+float last_eg_rpm = 0;
+float last_last_filt_eg_rpm = 0;
+float last_filt_eg_rpm = 0;
+
+float last_last_sd_rpm = 0;
+float last_sd_rpm = 0;
+float last_last_filt_sd_rpm = 0;
+float last_filt_sd_rpm = 0;
+
 float last_error = 0;
 
 bool button_states[5];
@@ -126,15 +136,15 @@ void control_function() {
       error * PROPORTIONAL_GAIN + d_error * DERIVATIVE_GAIN;
   last_error = error;
 
-  for (int i = 0; i < 5; i++) {
-    button_states[i] = !digitalRead(BUTTON_PINS[i]);
-  }
-  // button usage
-  for (int i = 0; i < 5; i++) {
-    last_button_states[i] = button_states[i];
-  }
+  int brake_light_bits = analogRead(BRAKE_LIGHT);
 
-  float clamped_velocity_command = actuator.update_speed(velocity_command);
+  float brake_offset = 0;
+  if (brake_light_bits > 100) {
+    //bias outward by 30 rotations per second when the breaklights are hit
+    brake_offset = 50;
+  }
+  float clamped_velocity_command =
+      actuator.update_speed(velocity_command, brake_offset);
 
   u_int32_t stop_us = micros();
   int can_error = 0;
@@ -166,7 +176,6 @@ void control_function() {
   log_message.control_cycle_start_us = start_us;
   log_message.control_cycle_stop_us = stop_us;
   log_message.control_cycle_dt_us = dt_us;
-  log_message.control_cycle_dt_us = dt_us;
   log_message.wheel_rpm = wl_rpm;
   log_message.engine_rpm = eg_rpm;
   log_message.engine_count = current_eg_count;
@@ -182,7 +191,7 @@ void control_function() {
   log_message.iq_measured = odrive_can.get_iq_measured(ACTUATOR_AXIS);
   log_message.iq_setpoint = odrive_can.get_iq_setpoint(ACTUATOR_AXIS);
   log_message.odrive_current = odrive_can.get_current();
-  log_message.inbound_estop = false;
+  log_message.inbound_estop = brake_light_bits;  //actually break light
   log_message.outbound_estop = false;
   log_message.shadow_count = odrive_can.get_shadow_count(ACTUATOR_AXIS);
   log_message.velocity_estimate = odrive_can.get_vel_estimate(ACTUATOR_AXIS);
