@@ -46,7 +46,7 @@ bool Odrive::init_connection() {
  */
 bool Odrive::encoder_index_search(int axis) {
   // Send desired state to encoder index search
-  Odrive::set_state(ODRIVE_ENCODER_INDEX_SEARCH_STATE, axis);
+  Odrive::set_state(ODRIVE_STATE_ENCODER_INDEX_SEARCH, axis);
 
   // Wait until process is done by checking if can read access
   int delay_ms = 100;
@@ -54,11 +54,11 @@ bool Odrive::encoder_index_search(int axis) {
   do {
     delay(delay_ms);
     odrive_serial << "r axis" << axis << ".current_state\n";
-  } while (Odrive::read_int() != ODRIVE_IDLE_STATE && --timeout_counter > 0);
+  } while (Odrive::read_int() != ODRIVE_STATE_IDLE && --timeout_counter > 0);
 
   if (timeout_counter > 0) {
     // Success, move to idle state
-    axis_state[axis] = ODRIVE_IDLE_STATE;
+    axis_state[axis] = ODRIVE_STATE_IDLE;
     return true;
   }
   // Timeout, report timeout error
@@ -74,8 +74,8 @@ bool Odrive::encoder_index_search(int axis) {
  * Returns false if set_state fails
  */
 bool Odrive::set_velocity(float velocity, int axis) {
-  if (axis_state[axis] != ODRIVE_VELOCITY_CONTROL_STATE) {
-    if (!Odrive::set_state(ODRIVE_VELOCITY_CONTROL_STATE, axis)) {
+  if (axis_state[axis] != ODRIVE_STATE_CLOSED_LOOP_CONTROL) {
+    if (!Odrive::set_state(ODRIVE_STATE_CLOSED_LOOP_CONTROL, axis)) {
       // Unable to set correct state
       return false;
     }
@@ -92,7 +92,7 @@ bool Odrive::set_velocity(float velocity, int axis) {
  * Returns if setting state is successful
  */
 bool Odrive::idle(int axis) {
-  return Odrive::set_state(ODRIVE_IDLE_STATE, axis);
+  return Odrive::set_state(ODRIVE_STATE_IDLE, axis);
 }
 
 // Functions to query data from Odrive

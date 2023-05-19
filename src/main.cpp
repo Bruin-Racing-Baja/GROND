@@ -70,6 +70,7 @@ bool encode_string(pb_ostream_t* stream, const pb_field_t* field,
 void control_function() {
   uint32_t start_us = micros();
 
+  // First, we calculate rpms
   // Record counts from engine and secondary sensors
   noInterrupts();
   uint32_t current_eg_count = eg_count;
@@ -103,28 +104,39 @@ void control_function() {
   float filt_eg_rpm = engine_rpm_filter.update(eg_rpm);
   float filt_sd_rpm = secondary_rpm_filter.update(sd_rpm);
 
-  // Calculate reference RPM from wheel speed
-  float target_rpm = WHEEL_REF_HIGH_RPM;
-  if (filt_sd_rpm <= 0) {
-    target_rpm = WHEEL_REF_LOW_RPM;
-  } else if (filt_sd_rpm <= WHEEL_REF_BREAKPOINT_SECONDARY_RPM) {
-    target_rpm = WHEEL_REF_PIECEWISE_SLOPE * filt_sd_rpm + WHEEL_REF_LOW_RPM;
+  float unclamped_velocity_command, velocity_command, target_rpm, error,
+      d_error;
+  int brake_light_signal;
+  if (filt_eg_rpm < ENGAGE_ENGINE_RPM) {
+    actuator.go_to_belt();
+  } else {
+    // Calculate reference RPM from wheel speed
+    float target_rpm = WHEEL_REF_HIGH_RPM;
+    if (filt_sd_rpm <= 0) {
+      target_rpm = WHEEL_REF_LOW_RPM;
+    } else if (filt_sd_rpm <= WHEEL_REF_BREAKPOINT_SECONDARY_RPM) {
+      target_rpm = WHEEL_REF_PIECEWISE_SLOPE * filt_sd_rpm + WHEEL_REF_LOW_RPM;
+    }
+
+    // PI controller math
+    error = target_rpm - filt_eg_rpm;
+    d_error = (error - last_error) / dt_s;
+    velocity_command = error * PROPORTIONAL_GAIN + d_error * DERIVATIVE_GAIN;
+    last_error = error;
+
+    // Brake biasing and velocity clamping
+    brake_light_signal = analogRead(BRAKE_LIGHT);
+    float brake_bias = 0;
+    if (brake_light_signal > 100)
+      brake_bias = 50;
+    unclamped_velocity_command = velocity_command;
+
+    velocity_command = constrain(velocity_command, -VEL_LIMIT, VEL_LIMIT);
+    velocity_command += brake_bias;
+
+    // Command actuator
+    actuator.update_speed(velocity_command);
   }
-
-  // PI controller math
-  float error = target_rpm - filt_eg_rpm;
-  float d_error = (error - last_error) / dt_s;
-  float velocity_command =
-      error * PROPORTIONAL_GAIN + d_error * DERIVATIVE_GAIN;
-  last_error = error;
-
-  // Brake biasing and actuator command
-  int brake_light_signal = analogRead(BRAKE_LIGHT);
-  float brake_bias = 0;
-  if (brake_light_signal > 100)
-    brake_bias = 50;
-  float clamped_velocity_command =
-      actuator.update_speed(velocity_command, brake_bias);
 
   uint32_t stop_us = micros();
 
@@ -148,10 +160,9 @@ void control_function() {
         odrive_can.get_iq_setpoint(ACTUATOR_AXIS),
         odrive_can.get_iq_measured(ACTUATOR_AXIS),
         odrive_can.get_time_since_heartbeat_ms(),
-        odrive_can.get_shadow_count(ACTUATOR_AXIS), can_error,
-        clamped_velocity_command, velocity_command, wl_rpm, eg_rpm,
-        current_wl_count, current_eg_count,
-        odrive_can.get_axis_error(ACTUATOR_AXIS),
+        odrive_can.get_shadow_count(ACTUATOR_AXIS), can_error, velocity_command,
+        unclamped_velocity_command, wl_rpm, eg_rpm, current_wl_count,
+        current_eg_count, odrive_can.get_axis_error(ACTUATOR_AXIS),
         odrive_can.get_motor_error(ACTUATOR_AXIS),
         odrive_can.get_encoder_error(ACTUATOR_AXIS), filt_eg_rpm);
   }
@@ -165,8 +176,8 @@ void control_function() {
   log_message.engine_count = current_eg_count;
   log_message.wheel_count = current_wl_count;
   log_message.target_rpm = target_rpm;
-  log_message.velocity_command = clamped_velocity_command;
-  log_message.unclamped_velocity_command = velocity_command;
+  log_message.velocity_command = velocity_command;
+  log_message.unclamped_velocity_command = unclamped_velocity_command;
   log_message.last_heartbeat_ms = odrive_can.get_time_since_heartbeat_ms();
   log_message.axis_error = odrive_can.get_axis_error(ACTUATOR_AXIS);
   log_message.motor_error = odrive_can.get_motor_error(ACTUATOR_AXIS);
@@ -314,6 +325,7 @@ void setup() {
     actuator.encoder_index_search() ? Serial.println("Complete")
                                     : Serial.println("Failed");
   }
+  actuator.homing_sequence();
   digitalWrite(LED_PINS[3], HIGH);
 
   // Attach wl, eg interrupts
@@ -328,7 +340,10 @@ void setup() {
   switch (kMode) {
     case OPERATING_MODE:
       odrive_can.set_input_vel(ACTUATOR_AXIS, 0, 0);
-      odrive_can.set_state(ACTUATOR_AXIS, ODRIVE_VELOCITY_CONTROL_STATE);
+      odrive_can.set_controller_modes(ACTUATOR_AXIS,
+                                      ODRIVE_CONTROL_MODE_VELOCITY,
+                                      ODRIVE_INPUT_MODE_PASSTHROUGH);
+      odrive_can.set_state(ACTUATOR_AXIS, ODRIVE_STATE_CLOSED_LOOP_CONTROL);
       timer.begin(control_function, CONTROL_FUNCTION_INTERVAL_US);
       break;
     case SERIAL_DEBUG_MODE:

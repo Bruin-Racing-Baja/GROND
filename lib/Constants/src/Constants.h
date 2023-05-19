@@ -21,6 +21,12 @@ const float WHEEL_REF_BREAKPOINT_SECONDARY_RPM = 875;
 const float WHEEL_REF_PIECEWISE_SLOPE =
     ((WHEEL_REF_HIGH_RPM - WHEEL_REF_LOW_RPM) /
      WHEEL_REF_BREAKPOINT_SECONDARY_RPM);
+const float ACTUATOR_HOMING_VELOCITY = 3.0;
+const float ACTUATOR_HOMING_CURRENT_SPIKE = 4.0;
+const float ACTUATOR_HOMING_VELOCITY_SPIKE = 1.0;
+const int32_t ACTUATOR_HOMING_DISENGAGE_OFFSET = 8192;
+const float ENGAGE_ENGINE_RPM = 2100;
+
 #define model 21
 
 // Per car constants
@@ -41,6 +47,8 @@ const int BUTTON_DOWN = 4;
 const int BUTTON_PINS[5] = {28, 29, 30, 31, 32};
 const int LED_PINS[5] = {2, 3, 4, 5};
 const int BRAKE_LIGHT = 26;
+const int ODRIVE_ESTOP_IN_PIN = 8;
+const int ODRIVE_ESTOP_OUT_PIN = 9;
 
 // Physical constants
 const float ROTATIONS_PER_ENGINE_COUNT = 1.0 / 100;
@@ -67,10 +75,15 @@ const int MEASURED_RPM_CACLULATION_WINDOW = 10;
 const int ODRIVE_DEFAULT_TIMEOUT = 1000;  //ms
 
 // Odrive enums
-const int ODRIVE_UNKNOWN_STATE = 0;
-const int ODRIVE_IDLE_STATE = 1;
-const int ODRIVE_ENCODER_INDEX_SEARCH_STATE = 6;
-const int ODRIVE_VELOCITY_CONTROL_STATE = 8;
+const int ODRIVE_STATE_UNKNOWN = 0;
+const int ODRIVE_STATE_IDLE = 1;
+const int ODRIVE_STATE_ENCODER_INDEX_SEARCH = 6;
+const int ODRIVE_STATE_CLOSED_LOOP_CONTROL = 8;
+
+const int ODRIVE_CONTROL_MODE_VELOCITY = 2;
+const int ODRIVE_CONTROL_MODE_POSITION = 3;
+
+const int ODRIVE_INPUT_MODE_PASSTHROUGH = 1;
 
 // Unit conversions
 const int MICROSECONDS_PER_SECOND = 1e6;
