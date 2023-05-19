@@ -57,10 +57,10 @@ const float WHEEL_MPH_PER_RPM = (WHEEL_DIAMETER_IN * M_PI) / (12 * 5280);
 #endif
 
 // Car-Indepenedent Constants
-const int LOG_LEVEL = 4;
 const int CONTROL_FUNCTION_INTERVAL_US = 1e5;  //microseconds
 const int ODRIVE_BAUD_RATE = 115200;           //hz
 const int ACTUATOR_AXIS = 1;
+const int NUMBER_CYCLES_PER_SD_FLUSH = 10;
 
 // Odrive constants
 const int ODRIVE_DEFAULT_TIMEOUT = 1000;  //ms
