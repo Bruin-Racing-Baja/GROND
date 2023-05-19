@@ -42,25 +42,35 @@ bool Actuator::encoder_index_search() {
  * @return bool if successful
  */
 bool Actuator::homing_sequence() {
+  Serial.println("Start home out");
   update_speed(ACTUATOR_HOMING_VELOCITY);
+  delayMicroseconds(2e6);
   while (fabs(odrive->get_vel_estimate(ACTUATOR_AXIS)) >
          ACTUATOR_HOMING_VELOCITY_SPIKE) {
     // !odrive->get_gpio(ODRIVE_ESTOP_OUT_PIN)
+    odrive->request_encoder_count(ACTUATOR_AXIS);
+    delayMicroseconds(1000);
     estop_out_pos = odrive->get_shadow_count(ACTUATOR_AXIS);
   }
-
+  Serial.println("Start home in");
   update_speed(-ACTUATOR_HOMING_VELOCITY);
+  delayMicroseconds(2e6);
   while (fabs(odrive->get_iq_measured(ACTUATOR_AXIS)) <
          ACTUATOR_HOMING_CURRENT_SPIKE) {
+    odrive->request_encoder_count(ACTUATOR_AXIS);
+    delayMicroseconds(1000);
     belt_pos = odrive->get_shadow_count(ACTUATOR_AXIS);
+    odrive->request_iq(ACTUATOR_AXIS);
+    delayMicroseconds(1000);
+    Serial.println(fabs(odrive->get_iq_measured(ACTUATOR_AXIS)));
   }
 
-  update_speed(ACTUATOR_HOMING_VELOCITY);
-  while ((odrive->get_shadow_count(ACTUATOR_AXIS) - belt_pos) <
-         ACTUATOR_HOMING_DISENGAGE_OFFSET) {}
-  outbound_limit_pos = odrive->get_shadow_count(ACTUATOR_AXIS);
+  Serial.println("start home disengage");
 
-  update_speed(0);
+  set_position((belt_pos + ACTUATOR_HOMING_DISENGAGE_OFFSET) / 8192.0);
+  outbound_limit_pos = odrive->get_shadow_count(ACTUATOR_AXIS);
+  Serial.printf("belt pos: %d\n", belt_pos);
+  delayMicroseconds(5e6);
   return true;
 }
 
@@ -121,7 +131,7 @@ int32_t Actuator::set_position(int32_t set_pos) {
 }
 
 void Actuator::go_to_belt() {
-  set_position(belt_pos);
+  set_position((belt_pos + ACTUATOR_HOMING_DISENGAGE_OFFSET) / 8192.0);
 }
 
 // Readout Functions

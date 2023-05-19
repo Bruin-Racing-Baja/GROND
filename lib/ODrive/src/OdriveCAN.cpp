@@ -294,7 +294,7 @@ int OdriveCAN::set_controller_modes(int axis, int control_mode,
   uint8_t buf[8] = {0};
   memcpy(buf, &control_mode, 4);
   memcpy(buf + 4, &input_mode, 4);
-  return send_command(axis, CAN_SET_CONTROLLER_MODES, 0);
+  return send_command(axis, CAN_SET_CONTROLLER_MODES, 0, buf);
 }
 
 int OdriveCAN::set_input_pos(int axis, float input_pos, int16_t vel_ff,
@@ -303,7 +303,7 @@ int OdriveCAN::set_input_pos(int axis, float input_pos, int16_t vel_ff,
   memcpy(buf, &input_pos, 4);
   memcpy(buf + 4, &vel_ff, 2);
   memcpy(buf + 6, &torque_ff, 2);
-  return send_command(axis, CAN_SET_INPUT_POS, 0);
+  return send_command(axis, CAN_SET_INPUT_POS, 0, buf);
 }
 
 int OdriveCAN::set_input_vel(int axis, float input_vel, float torque_ff) {

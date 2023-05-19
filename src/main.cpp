@@ -19,7 +19,7 @@
 
 // Startup Settings
 static constexpr int kMode = OPERATING_MODE;
-static constexpr int kWaitSerial = 0;
+static constexpr int kWaitSerial = 1;
 static constexpr int kHomeOnStartup = 1;  // Controls index search and home
 static constexpr bool kSerialDebugging = 1;
 
