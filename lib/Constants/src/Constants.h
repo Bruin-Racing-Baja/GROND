@@ -14,7 +14,7 @@ const float PROPORTIONAL_GAIN = 0.02;
 const float DERIVATIVE_GAIN = 0.00125;
 const float EG_RPM_WINTER_CUTOFF_FREQ = 1.2;
 const float SD_RPM_WINTER_CUTOFF_FREQ = 0.8;
-const float VEL_LIMIT = 39.0;
+const float VEL_LIMIT = 78;
 const float WHEEL_REF_LOW_RPM = 2100;
 const float WHEEL_REF_HIGH_RPM = 2300;
 const float WHEEL_REF_BREAKPOINT_SECONDARY_RPM = 875;
@@ -43,7 +43,7 @@ const int LED_PINS[5] = {2, 3, 4, 5};
 const int BRAKE_LIGHT = 26;
 
 // Physical constants
-const float ROTATIONS_PER_ENGINE_COUNT = 1.0 / 50;
+const float ROTATIONS_PER_ENGINE_COUNT = 1.0 / 100;
 const float MEASURED_GEAR_ROTATIONS_PER_COUNT =
     1.0 / 6;  // Actual rotation of wheel
 const float MEASURED_GEAR_TO_SECONDARY_ROTATIONS = 45.0 / 17;
@@ -57,10 +57,11 @@ const float WHEEL_MPH_PER_RPM = (WHEEL_DIAMETER_IN * M_PI) / (12 * 5280);
 #endif
 
 // Car-Indepenedent Constants
-const int CONTROL_FUNCTION_INTERVAL_US = 1e5;  //microseconds
+const int CONTROL_FUNCTION_INTERVAL_US = 1e4;  //microseconds
 const int ODRIVE_BAUD_RATE = 115200;           //hz
 const int ACTUATOR_AXIS = 1;
 const int NUMBER_CYCLES_PER_SD_FLUSH = 10;
+const int MEASURED_RPM_CACLULATION_WINDOW = 10;
 
 // Odrive constants
 const int ODRIVE_DEFAULT_TIMEOUT = 1000;  //ms
@@ -86,10 +87,14 @@ const int LOG_MESSAGE_ID = 1;
 const int SERIAL_DEBUGGER_INTERVAL_US = 100000;
 
 // Generated using scipy.signal.butter (TODO: add butterworth filter class)
-const float ENGINE_RPM_FILTER_B[] = {0.0913149, 0.1826298, 0.0913149};
-const float ENGINE_RPM_FILTER_A[] = {1., -0.98240579, 0.34766539};
-const float SECONDARY_RPM_FILTER_B[] = {0.0461318, 0.0922636, 0.0461318};
-const float SECONDARY_RPM_FILTER_A[] = {1., -1.30728503, 0.49181224};
+const float ENGINE_RPM_FILTER_B[] = {
+    0.0013487119483563445, 0.002697423896712689, 0.0013487119483563445};
+const float ENGINE_RPM_FILTER_A[] = {1.0, -1.8934641463618267,
+                                     0.8988589941552521};
+const float SECONDARY_RPM_FILTER_B[] = {
+    0.0006098547187172994, 0.0012197094374345988, 0.0006098547187172994};
+const float SECONDARY_RPM_FILTER_A[] = {1.0, -1.9289422632520332,
+                                        0.9313816821269024};
 
 const uint32_t ENGINE_RPM_FILTER_M =
     sizeof(ENGINE_RPM_FILTER_B) / sizeof(ENGINE_RPM_FILTER_B[0]);

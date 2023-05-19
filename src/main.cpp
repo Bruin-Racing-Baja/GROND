@@ -49,6 +49,7 @@ uint32_t last_wl_count = 0;
 float last_error = 0;
 volatile uint32_t eg_count = 0;
 volatile uint32_t wl_count = 0;
+float cur_ms_rpm = 0.0;
 
 // Real Time Clock functions
 time_t get_teensy3_time() {
@@ -83,15 +84,20 @@ void control_function() {
   float eg_rpm = (current_eg_count - last_eg_count) *
                  ROTATIONS_PER_ENGINE_COUNT / dt_us * MICROSECONDS_PER_SECOND *
                  60.0;
-  float ms_rpm = (current_wl_count - last_wl_count) *
+
+  if (cycle_count % MEASURED_RPM_CACLULATION_WINDOW == 0) {
+    cur_ms_rpm = (current_wl_count - last_wl_count) *
                  MEASURED_GEAR_ROTATIONS_PER_COUNT / dt_us *
-                 MICROSECONDS_PER_SECOND * 60.0;
+                 MICROSECONDS_PER_SECOND * 60.0 /
+                 MEASURED_RPM_CACLULATION_WINDOW;
+    last_wl_count = current_wl_count;
+  }
+  float ms_rpm = cur_ms_rpm;
   float sd_rpm = ms_rpm * MEASURED_GEAR_TO_SECONDARY_ROTATIONS;
   float wl_rpm = ms_rpm * MEASURED_GEAR_TO_SECONDARY_ROTATIONS *
                  SECONDARY_TO_WHEEL_ROTATIONS;
 
   last_eg_count = current_eg_count;
-  last_wl_count = current_wl_count;
 
   // Filter RPMs
   float filt_eg_rpm = engine_rpm_filter.update(eg_rpm);
@@ -312,7 +318,7 @@ void setup() {
 
   // Attach wl, eg interrupts
   attachInterrupt(
-      EG_INTERRUPT_PIN, []() { ++eg_count; }, FALLING);
+      EG_INTERRUPT_PIN, []() { ++eg_count; }, CHANGE);
   attachInterrupt(
       WL_INTERRUPT_PIN, []() { ++wl_count; }, RISING);
 
