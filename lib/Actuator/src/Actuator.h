@@ -14,7 +14,7 @@ class Actuator {
   float update_speed(float target_speed);
 
   int32_t set_position(int32_t set_pos);
-  void go_to_belt();
+  int go_to_relative_belt_pos(int num_turns_offset);
 
   // Getters
   int get_readout(float readout[5]);

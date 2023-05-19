@@ -130,8 +130,16 @@ int32_t Actuator::set_position(int32_t set_pos) {
   return set_pos;
 }
 
-void Actuator::go_to_belt() {
-  set_position((belt_pos + ACTUATOR_HOMING_DISENGAGE_OFFSET) / 8192.0);
+/**
+ * Instructs actuator to use position control to go to a position relative to the belt position
+ * EX:num_turns_offset = 1 will move the actuator to the position of the belt +1 turn out (so slightly disengaged)
+ * @param num_turns_offset the number of turns to offset from the belt position
+ * @return the position that is set
+*/
+int Actuator::go_to_relative_belt_pos(int num_turns_offset) {
+  int target_pos_turns = belt_pos / 8192.0 + num_turns_offset;
+  set_position(target_pos_turns);
+  return target_pos_turns;
 }
 
 // Readout Functions

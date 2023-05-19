@@ -105,11 +105,28 @@ void control_function() {
   float filt_sd_rpm = secondary_rpm_filter.update(sd_rpm);
 
   float unclamped_velocity_command, velocity_command, target_rpm, error,
-      d_error;
+      d_error, position_command;
   int brake_light_signal;
-  if (filt_eg_rpm < ENGAGE_ENGINE_RPM) {
-    actuator.go_to_belt();
-  } else {
+
+  // Control logic
+  int control_dominion = -1;
+
+  // Disengage if engine is going to stall or if engine is idling
+  if ((filt_eg_rpm < ENGAGE_ENGINE_RPM && filt_sd_rpm < 1) ||
+      (filt_eg_rpm < STALL_ENGINE_RPM)) {
+    control_dominion = 0;
+    position_command = actuator.go_to_relative_belt_pos(1);
+
+    // Engage if engine is above engage RPM or if car is moving at low rpm
+  } else if ((filt_eg_rpm < ENGAGE_ENGINE_RPM && filt_sd_rpm > 1) ||
+             (filt_eg_rpm > ENGAGE_ENGINE_RPM &&
+              filt_sd_rpm < WHEEL_REF_BREAKPOINT_SECONDARY_RPM)) {
+    control_dominion = 1;
+    position_command = actuator.go_to_relative_belt_pos(-1);
+
+    // Velocty PID to maintain target rpm
+  } else if (filt_sd_rpm > WHEEL_REF_BREAKPOINT_SECONDARY_RPM) {
+    control_dominion = 2;
     // Calculate reference RPM from wheel speed
     float target_rpm = WHEEL_REF_HIGH_RPM;
     if (filt_sd_rpm <= 0) {
@@ -136,6 +153,10 @@ void control_function() {
 
     // Command actuator
     actuator.update_speed(velocity_command);
+  } else {
+
+    // No idea what the car is doing lmao
+    control_dominion = -2;
   }
 
   uint32_t stop_us = micros();
@@ -150,21 +171,12 @@ void control_function() {
 
   if (kSerialDebugging) {
     Serial.printf(
-        "ms: %d, vltg: %.2f, crnt: %.2f, iq_set: %.2f, iq_m: %.2f, "
-        "hrt: %d, enc: %d, "
-        "can_er: %d, vel_cmd: "
-        "%.2f (%.2f), w_rpm: %.2f, e_rpm: %.2f, w_cnt: %d, e_cnt: "
-        "%d, "
-        "ax_err: %d, mtr_err: %d, enc_err: %d, filt_eg_rpm: %.2f\n",
-        millis(), odrive_can.get_voltage(), odrive_can.get_current(),
-        odrive_can.get_iq_setpoint(ACTUATOR_AXIS),
-        odrive_can.get_iq_measured(ACTUATOR_AXIS),
-        odrive_can.get_time_since_heartbeat_ms(),
-        odrive_can.get_shadow_count(ACTUATOR_AXIS), can_error, velocity_command,
-        unclamped_velocity_command, wl_rpm, eg_rpm, current_wl_count,
-        current_eg_count, odrive_can.get_axis_error(ACTUATOR_AXIS),
-        odrive_can.get_motor_error(ACTUATOR_AXIS),
-        odrive_can.get_encoder_error(ACTUATOR_AXIS), filt_eg_rpm);
+        "v: %.2f iq_m: %.2f hrt: %d egct: %d wcnt: %d efrpm: %.2f sdfrpm: %.2f "
+        "vcmd: %.2f pcmd: %.2f\n",
+        odrive_can.get_voltage(), odrive_can.get_iq_measured(ACTUATOR_AXIS),
+        odrive_can.get_time_since_heartbeat_ms(), current_eg_count,
+        current_wl_count, filt_eg_rpm, filt_sd_rpm, velocity_command,
+        position_command);
   }
 
   log_message.control_cycle_count = cycle_count;
@@ -195,6 +207,8 @@ void control_function() {
   log_message.engine_rpm_error = error;
   log_message.engine_rpm_deriv_error = d_error;
   log_message.brake_light_signal = brake_light_signal;
+  log_message.control_dominion = control_dominion;
+  log_message.position_command = position_command;
 
   // Write log to SD card buffer
   pb_ostream_t ostream = pb_ostream_from_buffer(buffer, sizeof(buffer));
