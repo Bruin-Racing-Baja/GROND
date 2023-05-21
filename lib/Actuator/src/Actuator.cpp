@@ -67,7 +67,7 @@ bool Actuator::homing_sequence() {
 
   Serial.println("start home disengage");
 
-  set_position((belt_pos + ACTUATOR_HOMING_DISENGAGE_OFFSET) / 8192.0);
+  set_position_safe((belt_pos + ACTUATOR_HOMING_DISENGAGE_OFFSET) / 8192.0);
   outbound_limit_pos = odrive->get_shadow_count(ACTUATOR_AXIS);
   Serial.printf("belt pos: %d\n", belt_pos);
   delayMicroseconds(5e6);
@@ -116,6 +116,7 @@ float Actuator::set_speed(float set_speed) {
  * @return the position that is set
  */
 int32_t Actuator::set_position(int32_t set_pos) {
+  return;
   bool can_error =
       !!odrive->set_state(ACTUATOR_AXIS, ODRIVE_STATE_CLOSED_LOOP_CONTROL);
   can_error |= !!odrive->set_controller_modes(ACTUATOR_AXIS,
@@ -123,6 +124,34 @@ int32_t Actuator::set_position(int32_t set_pos) {
                                               ODRIVE_INPUT_MODE_PASSTHROUGH);
   commanded_axis_state = ODRIVE_STATE_CLOSED_LOOP_CONTROL;
   commanded_control_mode = ODRIVE_CONTROL_MODE_POSITION;
+
+  if (abs(set_pos) > 2) {
+    if (set_pos > 0) {
+      set_pos = 2;
+    } else {
+      set_pos = -2;
+    }
+  }
+  can_error |= !!odrive->set_input_pos(ACTUATOR_AXIS, set_pos, 0, 0);
+  if (can_error) {
+    Serial.printf("Error Setting Speed (CAN Error %d)\n", can_error);
+  }
+  return set_pos;
+}
+
+/**
+ * Behaves like set position but uses trapazoidal trajectory control
+ * in order to reduce violence of ODRIVe rxn
+*/
+int32_t Actuator::set_position_safe(int32_t set_pos) {
+  bool can_error =
+      !!odrive->set_state(ACTUATOR_AXIS, ODRIVE_STATE_CLOSED_LOOP_CONTROL);
+  can_error |= !!odrive->set_controller_modes(ACTUATOR_AXIS,
+                                              ODRIVE_CONTROL_MODE_POSITION,
+                                              ODRIVE_INPUT_MODE_TRAJ_CONTROL);
+  commanded_axis_state = ODRIVE_STATE_CLOSED_LOOP_CONTROL;
+  commanded_control_mode = ODRIVE_CONTROL_MODE_POSITION;
+
   can_error |= !!odrive->set_input_pos(ACTUATOR_AXIS, set_pos, 0, 0);
   if (can_error) {
     Serial.printf("Error Setting Speed (CAN Error %d)\n", can_error);
@@ -138,8 +167,7 @@ int32_t Actuator::set_position(int32_t set_pos) {
 */
 int Actuator::go_to_relative_belt_pos(int num_turns_offset) {
   int target_pos_turns = belt_pos / 8192.0 + num_turns_offset;
-  set_position(target_pos_turns);
-  return target_pos_turns;
+  return set_position_safe(target_pos_turns);
 }
 
 // Readout Functions

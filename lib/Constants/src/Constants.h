@@ -14,7 +14,7 @@ const float PROPORTIONAL_GAIN = 0.02;
 const float DERIVATIVE_GAIN = 0.00125;
 const float EG_RPM_WINTER_CUTOFF_FREQ = 1.2;
 const float SD_RPM_WINTER_CUTOFF_FREQ = 0.8;
-const float VEL_LIMIT = 78;
+const float VEL_LIMIT = 2;
 const float WHEEL_REF_LOW_RPM = 2100;
 const float WHEEL_REF_HIGH_RPM = 2300;
 const float WHEEL_REF_BREAKPOINT_SECONDARY_RPM = 875;
@@ -85,6 +85,7 @@ const int ODRIVE_CONTROL_MODE_VELOCITY = 2;
 const int ODRIVE_CONTROL_MODE_POSITION = 3;
 
 const int ODRIVE_INPUT_MODE_PASSTHROUGH = 1;
+const int ODRIVE_INPUT_MODE_TRAJ_CONTROL = 5;
 
 // Unit conversions
 const int MICROSECONDS_PER_SECOND = 1e6;

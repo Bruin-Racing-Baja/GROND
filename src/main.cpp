@@ -172,11 +172,11 @@ void control_function() {
   if (kSerialDebugging) {
     Serial.printf(
         "v: %.2f iq_m: %.2f hrt: %d egct: %d wcnt: %d efrpm: %.2f sdfrpm: %.2f "
-        "vcmd: %.2f pcmd: %.2f\n",
+        "vcmd: %.2f pcmd: %.2f dom: %d bpos: %d\n",
         odrive_can.get_voltage(), odrive_can.get_iq_measured(ACTUATOR_AXIS),
         odrive_can.get_time_since_heartbeat_ms(), current_eg_count,
         current_wl_count, filt_eg_rpm, filt_sd_rpm, velocity_command,
-        position_command);
+        position_command, control_dominion, actuator.belt_pos);
   }
 
   log_message.control_cycle_count = cycle_count;
@@ -338,8 +338,9 @@ void setup() {
     Serial.print("Index search: ");
     actuator.encoder_index_search() ? Serial.println("Complete")
                                     : Serial.println("Failed");
+    actuator.homing_sequence();
   }
-  actuator.homing_sequence();
+
   digitalWrite(LED_PINS[3], HIGH);
 
   // Attach wl, eg interrupts

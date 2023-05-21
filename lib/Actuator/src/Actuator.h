@@ -14,10 +14,12 @@ class Actuator {
   float update_speed(float target_speed);
 
   int32_t set_position(int32_t set_pos);
+  int32_t set_position_safe(int32_t set_pos);
   int go_to_relative_belt_pos(int num_turns_offset);
 
   // Getters
   int get_readout(float readout[5]);
+  uint32_t belt_pos = 0;
 
  private:
   int actuator_error = 0;
@@ -29,7 +31,7 @@ class Actuator {
   float commanded_axis_velocity = 0.0;
 
   uint32_t estop_out_pos = 0;
-  uint32_t belt_pos = 0;
+
   uint32_t outbound_limit_pos = 0;
 
   // Constants
