@@ -16,6 +16,7 @@
 #include <pb.h>
 #include <pb_common.h>
 #include <pb_encode.h>
+#include <limits>
 
 // Startup Settings
 static constexpr int kMode = OPERATING_MODE;
@@ -53,6 +54,8 @@ float last_error = 0;
 volatile uint32_t eg_count = 0;
 volatile uint32_t wl_count = 0;
 float cur_ms_rpm = 0.0;
+int outbound_encoder_limit = INT_MAX;
+int inbound_encoder_limit = INT_MIN;
 
 // Real Time Clock functions
 time_t get_teensy3_time() {
@@ -127,7 +130,26 @@ void control_function() {
       brake_light_filter.update(brake_light_signal);
   bool brake_pressed = filtered_brake_light_signal > BRAKE_BIAS_CUTOFF;
 
-  float brake_bias = BRAKE_BIAS_VELOCITY ? brake_pressed : 0;
+  float brake_bias = brake_pressed ? BRAKE_BIAS_VELOCITY : 0;
+
+  // Dont allow actuators to command velocity when past software encoder count limit
+  if ((velocity_command < 0 &&
+       odrive_can.get_shadow_count(ACTUATOR_AXIS) <= inbound_encoder_limit) ||
+      (velocity_command > 0 &&
+       odrive_can.get_shadow_count(ACTUATOR_AXIS) >= outbound_encoder_limit)) {
+    velocity_command = 0;
+  }
+
+  // Update estop limits if they are pressed
+  if (odrive_can.get_gpio(ESTOP_IN_ODRIVE_PIN)) {
+    inbound_encoder_limit =
+        odrive_can.get_shadow_count(ACTUATOR_AXIS) + SOFTWARE_LIMIT_OFFSET;
+  }
+  if (odrive_can.get_gpio(ESTOP_OUT_ODRIVE_PIN)) {
+    outbound_encoder_limit =
+        odrive_can.get_shadow_count(ACTUATOR_AXIS) - SOFTWARE_LIMIT_OFFSET;
+  }
+
   float clamped_velocity_command =
       actuator.update_speed(velocity_command, brake_bias);
 
@@ -195,6 +217,8 @@ void control_function() {
   log_message.brake_light_signal = brake_light_signal;
   log_message.filtered_brake_light_signal = filtered_brake_light_signal;
   log_message.brake_pressed = brake_pressed;
+  log_message.inbound_encoder_limit = inbound_encoder_limit;
+  log_message.outbound_encoder_limit = outbound_encoder_limit;
 
   // Write log to SD card buffer
   pb_ostream_t ostream = pb_ostream_from_buffer(buffer, sizeof(buffer));
