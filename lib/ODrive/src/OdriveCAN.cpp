@@ -84,7 +84,7 @@ void OdriveCAN::parse_message(const CAN_message_t& msg) {
       break;
     case CAN_GET_IQ:
       memcpy(&iq_measured[axis], msg.buf + 4, 4);
-      memcpy(&iq_setpoint[axis], msg.buf, 4);
+      memcpy(&gpio_states, msg.buf + 4, 4);
       break;
     case CAN_GET_SENSORLESS_ESTIMATES:
       memcpy(&sensorless_vel_estimate[axis], msg.buf + 4, 4);
@@ -94,9 +94,11 @@ void OdriveCAN::parse_message(const CAN_message_t& msg) {
       memcpy(&vbus_voltage, msg.buf, 4);
       memcpy(&vbus_current, msg.buf + 4, 4);
       break;
+      /*
     case CAN_GET_GPIO_STATES:
       memcpy(&gpio_states, msg.buf, 4);
       break;
+    */
   }
 }
 
@@ -150,7 +152,8 @@ int OdriveCAN::request_vbus_voltage() {
 }
 
 int OdriveCAN::request_gpio_states() {
-  return send_empty_command(CAN_GET_GPIO_STATES, 1);
+  return request_iq(0);  // TODO: implement real GPIO reading
+  //send_empty_command(CAN_GET_GPIO_STATES, 1);
 }
 
 // Getters

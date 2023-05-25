@@ -36,7 +36,7 @@
 #define CAN_SET_LINEAR_COUNT 0x19
 #define CAN_SET_POSITION_GAIN 0x1A
 #define CAN_SET_VEL_GAINS 0x1B
-#define CAN_GET_GPIO_STATES 0x1C
+#define CAN_GET_GPIO_STATES CAN_GET_IQ
 
 class OdriveCAN {
  public:
