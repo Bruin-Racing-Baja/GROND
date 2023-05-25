@@ -16,6 +16,7 @@
 #include <pb.h>
 #include <pb_common.h>
 #include <pb_encode.h>
+#include <ULLFilter.cpp>
 
 // Startup Settings
 static constexpr int kMode = OPERATING_MODE;
@@ -28,14 +29,14 @@ OdriveCAN odrive_can;
 Actuator actuator(&odrive_can);
 IntervalTimer timer;
 File log_file;
-IIRFilter engine_rpm_filter(ENGINE_RPM_FILTER_B, ENGINE_RPM_FILTER_A,
-                            ENGINE_RPM_FILTER_M, ENGINE_RPM_FILTER_N);
 
 IIRFilter secondary_rpm_filter(SECONDARY_RPM_FILTER_B, SECONDARY_RPM_FILTER_A,
                                SECONDARY_RPM_FILTER_M, SECONDARY_RPM_FILTER_N);
 
 IIRFilter brake_light_filter(BRAKE_LIGHT_FILTER_B, BRAKE_LIGHT_FILTER_A,
                              BRAKE_LIGHT_FILTER_M, BRAKE_LIGHT_FILTER_N);
+
+UltraLowLatencyFilter engine_rpm_filter(ULL_ALPHA, ULL_BETA, ULL_BUFFER_SIZE);
 
 // CAN parsing interrupt function
 void odrive_can_parse(const CAN_message_t& msg) {
@@ -103,7 +104,7 @@ void control_function() {
   last_eg_count = current_eg_count;
 
   // Filter RPMs
-  float filt_eg_rpm = engine_rpm_filter.update(eg_rpm);
+  float filt_eg_rpm = engine_rpm_filter.filter(eg_rpm, dt_us);
   float filt_sd_rpm = secondary_rpm_filter.update(sd_rpm);
 
   // Calculate reference RPM from wheel speed
