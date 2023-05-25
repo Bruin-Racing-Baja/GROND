@@ -1,69 +1,65 @@
 /* GROND */
 
+#include <Actuator.h>
 #include <Arduino.h>
+#include <Constants.h>
 #include <FlexCAN_T4.h>
-// clang-format off
-#include <SPI.h>
-// clang-format on
 #include <HardwareSerial.h>
+#include <IIRFilter.h>
+#include <OdriveCAN.h>
 #include <SD.h>
+#include <SPI.h>
 #include <TimeLib.h>
 #include <header_message.pb.h>
 #include <log_message.pb.h>
+#include <math.h>
 #include <pb.h>
 #include <pb_common.h>
 #include <pb_encode.h>
-
-// Classes
-#include <Actuator.h>
-#include <Constants.h>
-#include <OdriveCAN.h>
 
 // Startup Settings
 static constexpr int kMode = OPERATING_MODE;
 static constexpr int kWaitSerial = 0;
 static constexpr int kHomeOnStartup = 1;  // Controls index search and home
+static constexpr bool kSerialDebugging = 0;
 
 // Object Declarations
 OdriveCAN odrive_can;
 Actuator actuator(&odrive_can);
 IntervalTimer timer;
 File log_file;
+IIRFilter engine_rpm_filter(ENGINE_RPM_FILTER_B, ENGINE_RPM_FILTER_A,
+                            ENGINE_RPM_FILTER_M, ENGINE_RPM_FILTER_N);
 
-// Parses CAN messages when received
+IIRFilter secondary_rpm_filter(SECONDARY_RPM_FILTER_B, SECONDARY_RPM_FILTER_A,
+                               SECONDARY_RPM_FILTER_M, SECONDARY_RPM_FILTER_N);
+
+IIRFilter brake_light_filter(BRAKE_LIGHT_FILTER_B, BRAKE_LIGHT_FILTER_A,
+                             BRAKE_LIGHT_FILTER_M, BRAKE_LIGHT_FILTER_N);
+
+// CAN parsing interrupt function
 void odrive_can_parse(const CAN_message_t& msg) {
   odrive_can.parse_message(msg);
 }
 
 // Control Function Variables
-uint8_t buffer[256];
+uint8_t buffer[512];
 LogMessage log_message;
 uint32_t cycle_count = 0;
-u_int32_t last_exec_us;
-long int last_eg_count = 0;
-long int last_wl_count = 0;
-float desired_speed = 0;
-bool button_states[5];
-bool last_button_states[5];
-int cycles_per_log_flush = 10;
-int last_log_flush = 0;
-bool pressed = false;
-bool flushed = false;
-bool sd_init = false;
+uint32_t last_sample_time_us;
+uint32_t last_eg_count = 0;
+uint32_t last_wl_count = 0;
+float last_error = 0;
+volatile uint32_t eg_count = 0;
+volatile uint32_t wl_count = 0;
+float cur_ms_rpm = 0.0;
 
-// Geartooth counts
-volatile unsigned long eg_count = 0;
-volatile unsigned long wl_count = 0;
-
+// Real Time Clock functions
 time_t get_teensy3_time() {
   return Teensy3Clock.get();
 }
 
-void get_time_string(char* buf) {
-  sprintf(buf, "%04d-%02d-%02d %02d:%02d:%02d", year(), month(), day(), hour(),
-          minute(), second());
-}
-
+// Protobuf encoding function
 bool encode_string(pb_ostream_t* stream, const pb_field_t* field,
                    void* const* arg) {
   const char* str = (const char*)(*arg);
@@ -75,51 +71,69 @@ bool encode_string(pb_ostream_t* stream, const pb_field_t* field,
 
 //ඞ
 void control_function() {
-  u_int32_t start_us = micros();
-  u_int32_t dt_us = start_us - last_exec_us;
+  uint32_t start_us = micros();
 
+  // Record counts from engine and secondary sensors
   noInterrupts();
-  long current_eg_count = eg_count;
-  long current_wl_count = wl_count;
+  uint32_t current_eg_count = eg_count;
+  uint32_t current_wl_count = wl_count;
   interrupts();
+  uint32_t sample_time_us = micros();
+  uint32_t dt_us = sample_time_us - last_sample_time_us;
+  last_sample_time_us = sample_time_us;
+  float dt_s = dt_us / 1.e6;
 
-  // First, calculate rpms
+  // Calculate instantaneous RPMs
   float eg_rpm = (current_eg_count - last_eg_count) *
                  ROTATIONS_PER_ENGINE_COUNT / dt_us * MICROSECONDS_PER_SECOND *
                  60.0;
-  float wl_rpm = (current_wl_count - last_wl_count) *
-                 ROTATIONS_PER_WHEEL_COUNT / dt_us * MICROSECONDS_PER_SECOND *
-                 60.0;
+
+  if (cycle_count % MEASURED_RPM_CACLULATION_WINDOW == 0) {
+    cur_ms_rpm = (current_wl_count - last_wl_count) *
+                 MEASURED_GEAR_ROTATIONS_PER_COUNT / dt_us *
+                 MICROSECONDS_PER_SECOND * 60.0 /
+                 MEASURED_RPM_CACLULATION_WINDOW;
+    last_wl_count = current_wl_count;
+  }
+  float ms_rpm = cur_ms_rpm;
+  float sd_rpm = ms_rpm * MEASURED_GEAR_TO_SECONDARY_ROTATIONS;
+  float wl_rpm = ms_rpm * MEASURED_GEAR_TO_SECONDARY_ROTATIONS *
+                 SECONDARY_TO_WHEEL_ROTATIONS;
 
   last_eg_count = current_eg_count;
-  last_wl_count = current_wl_count;
-  last_exec_us = start_us;
 
-  float error = TARGET_RPM - eg_rpm;
-  float velocity_command = error * PROPORTIONAL_GAIN;
+  // Filter RPMs
+  float filt_eg_rpm = engine_rpm_filter.update(eg_rpm);
+  float filt_sd_rpm = secondary_rpm_filter.update(sd_rpm);
 
-  for (int i = 0; i < 5; i++) {
-    button_states[i] = !digitalRead(BUTTON_PINS[i]);
-  }
-  if (button_states[BUTTON_LEFT] && !last_button_states[BUTTON_LEFT]) {
-    desired_speed -= 1;
-    pressed = true;
-  } else if (button_states[BUTTON_RIGHT] && !last_button_states[BUTTON_RIGHT]) {
-    desired_speed += 1;
-    pressed = true;
-  }
-  if (button_states[BUTTON_CENTER]) {
-    desired_speed = 0;
-    pressed = true;
-  }
-  for (int i = 0; i < 5; i++) {
-    last_button_states[i] = button_states[i];
+  // Calculate reference RPM from wheel speed
+  float target_rpm = WHEEL_REF_HIGH_RPM;
+  if (filt_sd_rpm <= 0) {
+    target_rpm = WHEEL_REF_LOW_RPM;
+  } else if (filt_sd_rpm <= WHEEL_REF_BREAKPOINT_SECONDARY_RPM) {
+    target_rpm = WHEEL_REF_PIECEWISE_SLOPE * filt_sd_rpm + WHEEL_REF_LOW_RPM;
   }
 
-  //velocity_command = desired_speed;
-  float clamped_velocity_command = actuator.update_speed(velocity_command);
+  // PI controller math
+  float error = target_rpm - filt_eg_rpm;
+  float d_error = (error - last_error) / dt_s;
+  float velocity_command =
+      error * PROPORTIONAL_GAIN + d_error * DERIVATIVE_GAIN;
+  last_error = error;
 
-  u_int32_t stop_us = micros();
+  // Brake biasing and actuator command
+  int brake_light_signal = analogRead(BRAKE_LIGHT);
+  int filtered_brake_light_signal =
+      brake_light_filter.update(brake_light_signal);
+  bool brake_pressed = filtered_brake_light_signal > BRAKE_BIAS_CUTOFF;
+
+  float brake_bias = BRAKE_BIAS_VELOCITY ? brake_pressed : 0;
+  float clamped_velocity_command =
+      actuator.update_speed(velocity_command, brake_bias);
+
+  uint32_t stop_us = micros();
+
+  // Logging
   int can_error = 0;
   can_error += !!odrive_can.request_vbus_voltage();
   can_error += !!odrive_can.request_encoder_count(ACTUATOR_AXIS);
@@ -128,35 +142,38 @@ void control_function() {
   can_error += !!odrive_can.request_iq(ACTUATOR_AXIS);
   can_error += !!odrive_can.request_gpio_states();
 
-  Serial.printf(
-      "ms: %d, vltg: %.2f, crnt: %.2f, iq_set: %.2f, iq_m: %.2f, "
-      "hrt: %d, enc: %d, "
-      "can_er: %d, vel_cmd: "
-      "%.2f (%.2f), flsh: %d, w_rpm: %.2f, e_rpm: %.2f, w_cnt: %d, e_cnt: %d, "
-      "ax_err: %d, mtr_err: %d, enc_err: %d, in: %d, out: %d\n",
-      millis(), odrive_can.get_voltage(), odrive_can.get_current(),
-      odrive_can.get_iq_setpoint(ACTUATOR_AXIS),
-      odrive_can.get_iq_measured(ACTUATOR_AXIS),
-      odrive_can.get_time_since_heartbeat_ms(),
-      odrive_can.get_shadow_count(ACTUATOR_AXIS), can_error,
-      clamped_velocity_command, velocity_command, flushed, wl_rpm, eg_rpm,
-      current_wl_count, current_eg_count,
-      odrive_can.get_axis_error(ACTUATOR_AXIS),
-      odrive_can.get_motor_error(ACTUATOR_AXIS),
-      odrive_can.get_encoder_error(ACTUATOR_AXIS),
-      odrive_can.get_gpio(ESTOP_IN_ODRIVE_PIN),
-      odrive_can.get_gpio(ESTOP_OUT_ODRIVE_PIN));
+  if (kSerialDebugging) {
+    Serial.printf(
+        "ms: %d, vltg: %.2f, crnt: %.2f, iq_set: %.2f, iq_m: %.2f, "
+        "hrt: %d, enc: %d, "
+        "can_er: %d, vel_cmd: "
+        "%.2f (%.2f), w_rpm: %.2f, e_rpm: %.2f, w_cnt: %d, e_cnt: "
+        "%d, "
+        "ax_err: %d, mtr_err: %d, enc_err: %d, filt_eg_rpm: %.2f, in: %d, "
+        "out:%d\n",
+        millis(), odrive_can.get_voltage(), odrive_can.get_current(),
+        odrive_can.get_iq_setpoint(ACTUATOR_AXIS),
+        odrive_can.get_iq_measured(ACTUATOR_AXIS),
+        odrive_can.get_time_since_heartbeat_ms(),
+        odrive_can.get_shadow_count(ACTUATOR_AXIS), can_error,
+        clamped_velocity_command, velocity_command, wl_rpm, eg_rpm,
+        current_wl_count, current_eg_count,
+        odrive_can.get_axis_error(ACTUATOR_AXIS),
+        odrive_can.get_motor_error(ACTUATOR_AXIS),
+        odrive_can.get_encoder_error(ACTUATOR_AXIS), filt_eg_rpm,
+        odrive_can.get_gpio(ESTOP_IN_ODRIVE_PIN),
+        odrive_can.get_gpio(ESTOP_OUT_ODRIVE_PIN));
+  }
 
   log_message.control_cycle_count = cycle_count;
   log_message.control_cycle_start_us = start_us;
   log_message.control_cycle_stop_us = stop_us;
   log_message.control_cycle_dt_us = dt_us;
-  log_message.control_cycle_dt_us = dt_us;
   log_message.wheel_rpm = wl_rpm;
   log_message.engine_rpm = eg_rpm;
   log_message.engine_count = current_eg_count;
   log_message.wheel_count = current_wl_count;
-  log_message.target_rpm = TARGET_RPM;
+  log_message.target_rpm = target_rpm;
   log_message.velocity_command = clamped_velocity_command;
   log_message.unclamped_velocity_command = velocity_command;
   log_message.last_heartbeat_ms = odrive_can.get_time_since_heartbeat_ms();
@@ -171,7 +188,15 @@ void control_function() {
   log_message.outbound_estop = odrive_can.get_gpio(ESTOP_OUT_ODRIVE_PIN);
   log_message.shadow_count = odrive_can.get_shadow_count(ACTUATOR_AXIS);
   log_message.velocity_estimate = odrive_can.get_vel_estimate(ACTUATOR_AXIS);
+  log_message.filtered_secondary_rpm = filt_sd_rpm;
+  log_message.filtered_engine_rpm = filt_eg_rpm;
+  log_message.engine_rpm_error = error;
+  log_message.engine_rpm_deriv_error = d_error;
+  log_message.brake_light_signal = brake_light_signal;
+  log_message.filtered_brake_light_signal = filtered_brake_light_signal;
+  log_message.brake_pressed = brake_pressed;
 
+  // Write log to SD card buffer
   pb_ostream_t ostream = pb_ostream_from_buffer(buffer, sizeof(buffer));
   pb_encode(&ostream, &LogMessage_msg, &log_message);
   size_t message_length = ostream.bytes_written;
@@ -180,36 +205,35 @@ void control_function() {
   log_file.printf("%04X", message_length, 4);
   log_file.write(buffer, message_length);
 
-  if (cycle_count % cycles_per_log_flush == 0) {
+  if (cycle_count % NUMBER_CYCLES_PER_SD_FLUSH == 0) {
     log_file.flush();
-    digitalToggle(LED_PINS[32]);
   }
 
   cycle_count++;
 }
 
 void serial_debugger() {
-  u_int32_t start_us = micros();
-  u_int32_t dt_us = start_us - last_exec_us;
+  uint32_t start_us = micros();
+  uint32_t dt_us = start_us - last_sample_time_us;
 
   noInterrupts();
-  long current_eg_count = eg_count;
-  long current_wl_count = wl_count;
+  uint32_t current_eg_count = eg_count;
+  uint32_t current_wl_count = wl_count;
   interrupts();
 
   float eg_rpm = (current_eg_count - last_eg_count) *
                  ROTATIONS_PER_ENGINE_COUNT / dt_us * MICROSECONDS_PER_SECOND *
                  60.0;
-  float wl_rpm = (current_wl_count - last_wl_count) *
-                 ROTATIONS_PER_WHEEL_COUNT / dt_us * MICROSECONDS_PER_SECOND *
-                 60.0;
+  float ms_rpm = (current_wl_count - last_wl_count) *
+                 MEASURED_GEAR_ROTATIONS_PER_COUNT / dt_us *
+                 MICROSECONDS_PER_SECOND * 60.0;
 
   last_eg_count = current_eg_count;
   last_wl_count = current_wl_count;
-  last_exec_us = start_us;
+  last_sample_time_us = start_us;
 
   Serial.printf("ms: %d ec: %d wc: %d ec_rpm: %f wc_rpm %f\n", millis(),
-                current_eg_count, current_wl_count, eg_rpm, wl_rpm);
+                current_eg_count, current_wl_count, eg_rpm, ms_rpm);
 }
 
 void setup() {
@@ -232,8 +256,7 @@ void setup() {
   }
 
   // SD initialization
-  sd_init = SD.sdfs.begin(SdioConfig(DMA_SDIO));
-  if (!sd_init) {
+  if (!SD.sdfs.begin(SdioConfig(DMA_SDIO))) {
     digitalWrite(LED_PINS[0], HIGH);
     Serial.println("SD failed to init");
   }
@@ -261,9 +284,20 @@ void setup() {
     header_message.timestamp_human.arg = malloc(20);
     header_message.timestamp_human.funcs.encode = &encode_string;
 
-    get_time_string((char*)header_message.timestamp_human.arg);
+    sprintf((char*)header_message.timestamp_human.arg,
+            "%04d-%02d-%02d %02d:%02d:%02d", year(), month(), day(), hour(),
+            minute(), second());
     header_message.clock_us = micros();
     header_message.p_gain = PROPORTIONAL_GAIN;
+    header_message.d_gain = DERIVATIVE_GAIN;
+    header_message.engine_rpm_winter_cutoff_frequency =
+        EG_RPM_WINTER_CUTOFF_FREQ;
+    header_message.secondary_rpm_winter_cutoff_frequency =
+        SD_RPM_WINTER_CUTOFF_FREQ;
+    header_message.wheel_ref_low_rpm = WHEEL_REF_LOW_RPM;
+    header_message.wheel_ref_high_rpm = WHEEL_REF_HIGH_RPM;
+    header_message.wheel_ref_breakpoint_secondary_rpm =
+        WHEEL_REF_BREAKPOINT_SECONDARY_RPM;
 
     pb_ostream_t ostream = pb_ostream_from_buffer(buffer, sizeof(buffer));
     pb_encode(&ostream, &HeaderMessage_msg, &header_message);
@@ -272,6 +306,8 @@ void setup() {
     log_file.printf("%01X", HEADER_MESSAGE_ID);
     log_file.printf("%04X", message_length);
     log_file.write(buffer, message_length);
+
+    free(header_message.timestamp_human.arg);
 
     Serial.printf("Logging at: %s\n", log_name);
   } else {
@@ -293,13 +329,13 @@ void setup() {
 
   // Attach wl, eg interrupts
   attachInterrupt(
-      EG_INTERRUPT_PIN, []() { ++eg_count; }, FALLING);
+      EG_INTERRUPT_PIN, []() { ++eg_count; }, CHANGE);
   attachInterrupt(
       WL_INTERRUPT_PIN, []() { ++wl_count; }, RISING);
 
   // Attach operating mode interrupt
-  Serial.print("Attaching interrupt mode " + String(kMode) + "\n");
-  last_exec_us = micros();
+  Serial.printf("Attaching interrupt mode %d\n", kMode);
+  last_sample_time_us = micros();
   switch (kMode) {
     case OPERATING_MODE:
       odrive_can.set_input_vel(ACTUATOR_AXIS, 0, 0);

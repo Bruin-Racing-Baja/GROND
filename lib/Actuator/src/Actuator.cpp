@@ -44,12 +44,12 @@ bool Actuator::encoder_index_search() {
  * @param target_speed the speed to updtate to
  * @return the current set speed of the actuator
  */
-float Actuator::update_speed(float target_speed) {
+float Actuator::update_speed(float target_speed, float brake_offset) {
   if (commanded_axis_state == ODRIVE_VELOCITY_CONTROL_STATE &&
       target_speed == current_speed) {
     return target_speed;
   }
-  return Actuator::set_speed(target_speed);
+  return Actuator::set_speed(target_speed, brake_offset);
 }
 
 /**
@@ -57,8 +57,9 @@ float Actuator::update_speed(float target_speed) {
  * @param set_speed the speed to set
  * @return the speed that is set
  */
-float Actuator::set_speed(float set_speed) {
+float Actuator::set_speed(float set_speed, float brake_offset) {
   set_speed = constrain(set_speed, -VEL_LIMIT, VEL_LIMIT);
+  set_speed += brake_offset;
   int can_error =
       odrive->set_state(ACTUATOR_AXIS, ODRIVE_VELOCITY_CONTROL_STATE);
   commanded_axis_state = ODRIVE_VELOCITY_CONTROL_STATE;

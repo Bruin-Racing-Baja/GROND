@@ -1,7 +1,0 @@
-syntax = "proto3";
-
-message HeaderMessage {
-    string timestamp_human = 1;
-    uint32 clock_us = 2;
-    float p_gain = 3;
-}

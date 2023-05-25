@@ -11,7 +11,7 @@ class Actuator {
   bool init();
   bool encoder_index_search();
   bool actuator_homing();
-  float update_speed(float target_speed);
+  float update_speed(float target_speed, float brake_offset);
 
   // Getters
   int get_readout(float readout[5]);
@@ -26,7 +26,7 @@ class Actuator {
   // Constants
   int axis_number = ACTUATOR_AXIS;
   // Functions
-  float set_speed(float set_speed);
+  float set_speed(float set_speed, float brake_offset);
 
   OdriveCAN* odrive;
 };
