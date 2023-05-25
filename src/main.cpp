@@ -21,7 +21,7 @@
 static constexpr int kMode = OPERATING_MODE;
 static constexpr int kWaitSerial = 0;
 static constexpr int kHomeOnStartup = 1;  // Controls index search and home
-static constexpr bool kSerialDebugging = 1;
+static constexpr bool kSerialDebugging = 0;
 
 // Object Declarations
 OdriveCAN odrive_can;
@@ -33,6 +33,9 @@ IIRFilter engine_rpm_filter(ENGINE_RPM_FILTER_B, ENGINE_RPM_FILTER_A,
 
 IIRFilter secondary_rpm_filter(SECONDARY_RPM_FILTER_B, SECONDARY_RPM_FILTER_A,
                                SECONDARY_RPM_FILTER_M, SECONDARY_RPM_FILTER_N);
+
+IIRFilter brake_light_filter(BRAKE_LIGHT_FILTER_B, BRAKE_LIGHT_FILTER_A,
+                             BRAKE_LIGHT_FILTER_M, BRAKE_LIGHT_FILTER_N);
 
 // CAN parsing interrupt function
 void odrive_can_parse(const CAN_message_t& msg) {
@@ -49,6 +52,7 @@ uint32_t last_wl_count = 0;
 float last_error = 0;
 volatile uint32_t eg_count = 0;
 volatile uint32_t wl_count = 0;
+float cur_ms_rpm = 0.0;
 
 // Real Time Clock functions
 time_t get_teensy3_time() {
@@ -83,15 +87,20 @@ void control_function() {
   float eg_rpm = (current_eg_count - last_eg_count) *
                  ROTATIONS_PER_ENGINE_COUNT / dt_us * MICROSECONDS_PER_SECOND *
                  60.0;
-  float ms_rpm = (current_wl_count - last_wl_count) *
+
+  if (cycle_count % MEASURED_RPM_CACLULATION_WINDOW == 0) {
+    cur_ms_rpm = (current_wl_count - last_wl_count) *
                  MEASURED_GEAR_ROTATIONS_PER_COUNT / dt_us *
-                 MICROSECONDS_PER_SECOND * 60.0;
+                 MICROSECONDS_PER_SECOND * 60.0 /
+                 MEASURED_RPM_CACLULATION_WINDOW;
+    last_wl_count = current_wl_count;
+  }
+  float ms_rpm = cur_ms_rpm;
   float sd_rpm = ms_rpm * MEASURED_GEAR_TO_SECONDARY_ROTATIONS;
   float wl_rpm = ms_rpm * MEASURED_GEAR_TO_SECONDARY_ROTATIONS *
                  SECONDARY_TO_WHEEL_ROTATIONS;
 
   last_eg_count = current_eg_count;
-  last_wl_count = current_wl_count;
 
   // Filter RPMs
   float filt_eg_rpm = engine_rpm_filter.update(eg_rpm);
@@ -114,9 +123,11 @@ void control_function() {
 
   // Brake biasing and actuator command
   int brake_light_signal = analogRead(BRAKE_LIGHT);
-  float brake_bias = 0;
-  if (brake_light_signal > 100)
-    brake_bias = 50;
+  int filtered_brake_light_signal =
+      brake_light_filter.update(brake_light_signal);
+  bool brake_pressed = filtered_brake_light_signal > BRAKE_BIAS_CUTOFF;
+
+  float brake_bias = BRAKE_BIAS_VELOCITY ? brake_pressed : 0;
   float clamped_velocity_command =
       actuator.update_speed(velocity_command, brake_bias);
 
@@ -178,6 +189,8 @@ void control_function() {
   log_message.engine_rpm_error = error;
   log_message.engine_rpm_deriv_error = d_error;
   log_message.brake_light_signal = brake_light_signal;
+  log_message.filtered_brake_light_signal = filtered_brake_light_signal;
+  log_message.brake_pressed = brake_pressed;
 
   // Write log to SD card buffer
   pb_ostream_t ostream = pb_ostream_from_buffer(buffer, sizeof(buffer));
@@ -312,7 +325,7 @@ void setup() {
 
   // Attach wl, eg interrupts
   attachInterrupt(
-      EG_INTERRUPT_PIN, []() { ++eg_count; }, FALLING);
+      EG_INTERRUPT_PIN, []() { ++eg_count; }, CHANGE);
   attachInterrupt(
       WL_INTERRUPT_PIN, []() { ++wl_count; }, RISING);
 
