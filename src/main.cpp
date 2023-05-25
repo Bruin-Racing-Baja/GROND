@@ -140,6 +140,7 @@ void control_function() {
   can_error += !!odrive_can.request_motor_error(ACTUATOR_AXIS);
   can_error += !!odrive_can.request_encoder_count(ACTUATOR_AXIS);
   can_error += !!odrive_can.request_iq(ACTUATOR_AXIS);
+  can_error += !!odrive_can.request_gpio_states();
 
   if (kSerialDebugging) {
     Serial.printf(
@@ -148,7 +149,8 @@ void control_function() {
         "can_er: %d, vel_cmd: "
         "%.2f (%.2f), w_rpm: %.2f, e_rpm: %.2f, w_cnt: %d, e_cnt: "
         "%d, "
-        "ax_err: %d, mtr_err: %d, enc_err: %d, filt_eg_rpm: %.2f\n",
+        "ax_err: %d, mtr_err: %d, enc_err: %d, filt_eg_rpm: %.2f, in: %d, "
+        "out:%d\n",
         millis(), odrive_can.get_voltage(), odrive_can.get_current(),
         odrive_can.get_iq_setpoint(ACTUATOR_AXIS),
         odrive_can.get_iq_measured(ACTUATOR_AXIS),
@@ -158,7 +160,9 @@ void control_function() {
         current_wl_count, current_eg_count,
         odrive_can.get_axis_error(ACTUATOR_AXIS),
         odrive_can.get_motor_error(ACTUATOR_AXIS),
-        odrive_can.get_encoder_error(ACTUATOR_AXIS), filt_eg_rpm);
+        odrive_can.get_encoder_error(ACTUATOR_AXIS), filt_eg_rpm,
+        odrive_can.get_gpio(ESTOP_IN_ODRIVE_PIN),
+        odrive_can.get_gpio(ESTOP_OUT_ODRIVE_PIN));
   }
 
   log_message.control_cycle_count = cycle_count;
@@ -180,8 +184,8 @@ void control_function() {
   log_message.iq_measured = odrive_can.get_iq_measured(ACTUATOR_AXIS);
   log_message.iq_setpoint = odrive_can.get_iq_setpoint(ACTUATOR_AXIS);
   log_message.odrive_current = odrive_can.get_current();
-  log_message.inbound_estop = false;
-  log_message.outbound_estop = false;
+  log_message.inbound_estop = odrive_can.get_gpio(ESTOP_IN_ODRIVE_PIN);
+  log_message.outbound_estop = odrive_can.get_gpio(ESTOP_OUT_ODRIVE_PIN);
   log_message.shadow_count = odrive_can.get_shadow_count(ACTUATOR_AXIS);
   log_message.velocity_estimate = odrive_can.get_vel_estimate(ACTUATOR_AXIS);
   log_message.filtered_secondary_rpm = filt_sd_rpm;
