@@ -27,7 +27,7 @@ const int BUTTON_PINS[5] = {28, 29, 30, 31, 32};
 const int LED_PINS[5] = {2, 3, 4, 5};
 
 // Physical constants
-const float ROTATIONS_PER_ENGINE_COUNT = 1.0 / 16;
+const float ROTATIONS_PER_ENGINE_COUNT = 1.0 / 100;
 const float ROTATIONS_PER_WHEEL_COUNT = 1.0 / 12;  // Actual rotation of wheel
 const float SECONDARY_ROTATIONS_PER_WHEEL_COUNT =
     1.0 / ((45 / 17) * (57 / 18));  //Rotation of secondary
@@ -38,7 +38,7 @@ const float SECONDARY_ROTATIONS_PER_WHEEL_COUNT =
 
 // Car-Indepenedent Constants
 const int LOG_LEVEL = 4;
-const int CONTROL_FUNCTION_INTERVAL_US = 1e5;  //microseconds
+const int CONTROL_FUNCTION_INTERVAL_US = 2e4;  //microseconds
 const int ODRIVE_BAUD_RATE = 115200;           //hz
 const int ACTUATOR_AXIS = 1;
 

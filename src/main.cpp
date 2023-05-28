@@ -32,7 +32,7 @@ File log_file;
 
 // Parses CAN messages when received
 void odrive_can_parse(const CAN_message_t& msg) {
-//  odrive_can.parse_message(msg);
+  //  odrive_can.parse_message(msg);
 }
 
 // Control Function Variables
@@ -154,20 +154,22 @@ void control_function() {
   log_message.engine_count = current_eg_count;
   log_message.wheel_count = current_wl_count;
   log_message.target_rpm = TARGET_RPM;
-  log_message.velocity_command = 0 ;//clamped_velocity_command;
+  log_message.velocity_command = 0;  //clamped_velocity_command;
   log_message.unclamped_velocity_command = velocity_command;
-  log_message.last_heartbeat_ms = 0 ;//odrive_can.get_time_since_heartbeat_ms();
-  log_message.axis_error = 0;// odrive_can.get_axis_error(ACTUATOR_AXIS);
-  log_message.motor_error = 0;// odrive_can.get_motor_error(ACTUATOR_AXIS);
-  log_message.encoder_error = 0;//odrive_can.get_encoder_error(ACTUATOR_AXIS);
-  log_message.voltage = 0;//odrive_can.get_voltage();
-  log_message.iq_measured = 0;//odrive_can.get_iq_measured(ACTUATOR_AXIS);
-  log_message.iq_setpoint = 0;//odrive_can.get_iq_setpoint(ACTUATOR_AXIS);
-  log_message.odrive_current = 0;//odrive_can.get_current();
+  log_message.last_heartbeat_ms =
+      0;                          //odrive_can.get_time_since_heartbeat_ms();
+  log_message.axis_error = 0;     // odrive_can.get_axis_error(ACTUATOR_AXIS);
+  log_message.motor_error = 0;    // odrive_can.get_motor_error(ACTUATOR_AXIS);
+  log_message.encoder_error = 0;  //odrive_can.get_encoder_error(ACTUATOR_AXIS);
+  log_message.voltage = 0;        //odrive_can.get_voltage();
+  log_message.iq_measured = 0;    //odrive_can.get_iq_measured(ACTUATOR_AXIS);
+  log_message.iq_setpoint = 0;    //odrive_can.get_iq_setpoint(ACTUATOR_AXIS);
+  log_message.odrive_current = 0;  //odrive_can.get_current();
   log_message.inbound_estop = false;
   log_message.outbound_estop = false;
-  log_message.shadow_count = 0;//odrive_can.get_shadow_count(ACTUATOR_AXIS);
-  log_message.velocity_estimate = 0;//odrive_can.get_vel_estimate(ACTUATOR_AXIS);
+  log_message.shadow_count = 0;  //odrive_can.get_shadow_count(ACTUATOR_AXIS);
+  log_message.velocity_estimate =
+      0;  //odrive_can.get_vel_estimate(ACTUATOR_AXIS);
 
   pb_ostream_t ostream = pb_ostream_from_buffer(buffer, sizeof(buffer));
   pb_encode(&ostream, &LogMessage_msg, &log_message);
@@ -176,11 +178,11 @@ void control_function() {
   log_file.printf("%01X", LOG_MESSAGE_ID, 1);
   log_file.printf("%04X", message_length, 4);
   log_file.write(buffer, message_length);
-
+  /*
   if (cycle_count % cycles_per_log_flush == 0) {
     log_file.flush();
-    digitalToggle(LED_PINS[32]);
-  }
+  }*/
+  Serial.printf("%d, %d, %.0f\n", start_us, dt_us, eg_rpm);
 
   cycle_count++;
 }
@@ -207,6 +209,27 @@ void serial_debugger() {
 
   Serial.printf("ms: %d ec: %d wc: %d ec_rpm: %f wc_rpm %f\n", millis(),
                 current_eg_count, current_wl_count, eg_rpm, wl_rpm);
+}
+void beholder() {
+
+  u_int32_t start_us = micros();
+  u_int32_t dt_us = start_us - last_exec_us;
+
+  noInterrupts();
+  long current_eg_count = eg_count;
+  interrupts();
+
+  // First, calculate rpms
+  long diff_eg_count = current_eg_count - last_eg_count;
+  float eg_rpm = (diff_eg_count)*ROTATIONS_PER_ENGINE_COUNT / dt_us *
+                 MICROSECONDS_PER_SECOND * 60.0;
+
+  last_eg_count = current_eg_count;
+  last_exec_us = start_us;
+
+  //log_file.printf("%d, %d, %d, %d, %.0f\n", start_us, dt_us, current_eg_count,
+  //diff_eg_count, eg_rpm);
+  Serial.printf("%d, %d, %.0f\n", start_us, dt_us, eg_rpm);
 }
 
 void setup() {
@@ -252,6 +275,7 @@ void setup() {
 
   log_file = SD.open(log_name, FILE_WRITE);
 
+  /*
   if (log_file) {
     HeaderMessage header_message;
 
@@ -275,10 +299,11 @@ void setup() {
     digitalWrite(LED_PINS[0], HIGH);
     Serial.printf("Failed to open log file: %s\n", log_name);
   }
+  */
 
   // Establish odrive connection
-  0;//odrive_can.init(&odrive_can_parse);
-  0;//actuator.init();
+  0;  //odrive_can.init(&odrive_can_parse);
+  0;  //actuator.init();
 
   // Home actuator
   if (kHomeOnStartup) {
@@ -289,22 +314,26 @@ void setup() {
 
   // Attach wl, eg interrupts
   attachInterrupt(
-      EG_INTERRUPT_PIN, []() { ++eg_count; }, FALLING);
+      EG_INTERRUPT_PIN, []() { ++eg_count; }, CHANGE);
   attachInterrupt(
       WL_INTERRUPT_PIN, []() { ++wl_count; }, RISING);
 
   // Attach operating mode interrupt
   Serial.print("Attaching interrupt mode " + String(kMode) + "\n");
   last_exec_us = micros();
+  timer.begin(control_function, CONTROL_FUNCTION_INTERVAL_US);
   switch (kMode) {
     case OPERATING_MODE:
       //odrive_can.set_input_vel(ACTUATOR_AXIS, 0, 0);
       //odrive_can.set_state(ACTUATOR_AXIS, ODRIVE_VELOCITY_CONTROL_STATE);
-      timer.begin(control_function, CONTROL_FUNCTION_INTERVAL_US);
+      //timer.begin(control_function, CONTROL_FUNCTION_INTERVAL_US);
       break;
     case SERIAL_DEBUG_MODE:
-      timer.begin(serial_debugger, SERIAL_DEBUGGER_INTERVAL_US);
+      //timer.begin(serial_debugger, SERIAL_DEBUGGER_INTERVAL_US);
       break;
   }
 }
-void loop() {}
+
+void loop() {
+  log_file.flush();
+}
