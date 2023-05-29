@@ -138,16 +138,17 @@ void control_function() {
       actuator.update_speed(velocity_command, brake_bias);
   
   // Logging
-  int can_error = 0;
-  can_error += !!odrive_can.request_vbus_voltage();
-  can_error += !!odrive_can.request_encoder_count(ACTUATOR_AXIS);
-  can_error += !!odrive_can.request_motor_error(ACTUATOR_AXIS);
-  can_error += !!odrive_can.request_encoder_count(ACTUATOR_AXIS);
-  can_error += !!odrive_can.request_iq(ACTUATOR_AXIS);
-  can_error += !!odrive_can.request_gpio_states();
-
-  if (kSerialDebugging) {
-    Serial.printf(
+  if (!ENABLE_LOGGING_LITE) {
+    int can_error = 0;
+    can_error += !!odrive_can.request_vbus_voltage();
+    can_error += !!odrive_can.request_encoder_count(ACTUATOR_AXIS);
+    can_error += !!odrive_can.request_motor_error(ACTUATOR_AXIS);
+    can_error += !!odrive_can.request_encoder_count(ACTUATOR_AXIS);
+    can_error += !!odrive_can.request_iq(ACTUATOR_AXIS);
+    can_error += !!odrive_can.request_gpio_states();
+      
+      if (kSerialDebugging) {
+        Serial.printf(
         "ms: %d, vltg: %.2f, crnt: %.2f, iq_set: %.2f, iq_m: %.2f, "
         "hrt: %d, enc: %d, "
         "can_er: %d, vel_cmd: "
@@ -167,39 +168,43 @@ void control_function() {
         odrive_can.get_encoder_error(ACTUATOR_AXIS), filt_eg_rpm,
         odrive_can.get_gpio(ESTOP_IN_ODRIVE_PIN),
         odrive_can.get_gpio(ESTOP_OUT_ODRIVE_PIN));
-  }
+      }
+    log_message.engine_rpm = eg_rpm;
+    log_message.wheel_rpm = wl_rpm;
+    log_message.control_cycle_count = cycle_count;
+    log_message.engine_count = current_eg_count;
+    log_message.wheel_count = current_wl_count;
+    log_message.target_rpm = target_rpm;
+    log_message.velocity_command = clamped_velocity_command;
+    log_message.last_heartbeat_ms = odrive_can.get_time_since_heartbeat_ms();
+    log_message.axis_error = odrive_can.get_axis_error(ACTUATOR_AXIS);
+    log_message.motor_error = odrive_can.get_motor_error(ACTUATOR_AXIS);
+    log_message.encoder_error = odrive_can.get_encoder_error(ACTUATOR_AXIS);
+    log_message.voltage = odrive_can.get_voltage();
+    log_message.iq_setpoint = odrive_can.get_iq_setpoint(ACTUATOR_AXIS);
+    log_message.odrive_current = odrive_can.get_current();
+    log_message.shadow_count = odrive_can.get_shadow_count(ACTUATOR_AXIS);
+    log_message.velocity_estimate = odrive_can.get_vel_estimate(ACTUATOR_AXIS);
+    log_message.engine_rpm_error = error;
+    log_message.engine_rpm_deriv_error = d_error;
+    log_message.brake_light_signal = brake_light_signal;
+    log_message.filtered_brake_light_signal = filtered_brake_light_signal;
+    log_message.brake_pressed = brake_pressed;
 
-  log_message.control_cycle_count = cycle_count;
+    log_message.iq_measured = odrive_can.get_iq_measured(ACTUATOR_AXIS);
+    log_message.inbound_estop = odrive_can.get_gpio(ESTOP_IN_ODRIVE_PIN);
+    log_message.outbound_estop = odrive_can.get_gpio(ESTOP_OUT_ODRIVE_PIN);
+  }
+  
+  //This logging will always occur
   log_message.control_cycle_start_us = start_us;
   log_message.control_cycle_stop_us = stop_us;
   log_message.control_cycle_dt_us = dt_us;
-  log_message.wheel_rpm = wl_rpm;
-  log_message.engine_rpm = eg_rpm;
-  log_message.engine_count = current_eg_count;
-  log_message.wheel_count = current_wl_count;
-  log_message.target_rpm = target_rpm;
-  log_message.velocity_command = clamped_velocity_command;
   log_message.unclamped_velocity_command = velocity_command;
-  log_message.last_heartbeat_ms = odrive_can.get_time_since_heartbeat_ms();
-  log_message.axis_error = odrive_can.get_axis_error(ACTUATOR_AXIS);
-  log_message.motor_error = odrive_can.get_motor_error(ACTUATOR_AXIS);
-  log_message.encoder_error = odrive_can.get_encoder_error(ACTUATOR_AXIS);
-  log_message.voltage = odrive_can.get_voltage();
-  log_message.iq_measured = odrive_can.get_iq_measured(ACTUATOR_AXIS);
-  log_message.iq_setpoint = odrive_can.get_iq_setpoint(ACTUATOR_AXIS);
-  log_message.odrive_current = odrive_can.get_current();
-  log_message.inbound_estop = odrive_can.get_gpio(ESTOP_IN_ODRIVE_PIN);
-  log_message.outbound_estop = odrive_can.get_gpio(ESTOP_OUT_ODRIVE_PIN);
-  log_message.shadow_count = odrive_can.get_shadow_count(ACTUATOR_AXIS);
-  log_message.velocity_estimate = odrive_can.get_vel_estimate(ACTUATOR_AXIS);
   log_message.filtered_secondary_rpm = filt_sd_rpm;
   log_message.filtered_engine_rpm = filt_eg_rpm;
-  log_message.engine_rpm_error = error;
-  log_message.engine_rpm_deriv_error = d_error;
-  log_message.brake_light_signal = brake_light_signal;
-  log_message.filtered_brake_light_signal = filtered_brake_light_signal;
-  log_message.brake_pressed = brake_pressed;
 
+  
   // Write log to SD card buffer
   pb_ostream_t ostream = pb_ostream_from_buffer(buffer, sizeof(buffer));
   pb_encode(&ostream, &LogMessage_msg, &log_message);

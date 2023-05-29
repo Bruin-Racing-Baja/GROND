@@ -28,6 +28,8 @@ const float VEL_LIMIT = 78;
 const int BRAKE_BIAS_CUTOFF = 200;
 const float BRAKE_BIAS_VELOCITY = 50;
 
+const bool ENABLE_LOGGING_LITE = true;
+
 // Filters
 const float EG_RPM_WINTER_CUTOFF_FREQ = 1.2;
 const float SD_RPM_WINTER_CUTOFF_FREQ = 0.8;
