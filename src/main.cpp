@@ -54,6 +54,7 @@ float last_error = 0;
 volatile uint32_t eg_count = 0;
 volatile uint32_t wl_count = 0;
 float cur_ms_rpm = 0.0;
+uint32_t stop_us = 0;
 
 // Real Time Clock functions
 time_t get_teensy3_time() {
@@ -132,8 +133,7 @@ void control_function() {
   float clamped_velocity_command =
       actuator.update_speed(velocity_command, brake_bias);
 
-  uint32_t stop_us = micros();
-
+  
   // Logging
   int can_error = 0;
   can_error += !!odrive_can.request_vbus_voltage();
@@ -206,11 +206,19 @@ void control_function() {
   log_file.printf("%04X", message_length, 4);
   log_file.write(buffer, message_length);
 
+
   if (cycle_count % NUMBER_CYCLES_PER_SD_FLUSH == 0) {
     log_file.flush();
   }
 
+  noInterrupts();
+  last_eg_count = eg_count;
+  last_wl_count = wl_count;
+  interrupts();
+  last_sample_time_us = micros();
+
   cycle_count++;
+  stop_us = micros();
 }
 
 void serial_debugger() {
