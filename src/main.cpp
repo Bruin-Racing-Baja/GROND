@@ -37,6 +37,7 @@ IIRFilter brake_light_filter(BRAKE_LIGHT_FILTER_B, BRAKE_LIGHT_FILTER_A,
                              BRAKE_LIGHT_FILTER_M, BRAKE_LIGHT_FILTER_N);
 
 UltraLowLatencyFilter engine_rpm_filter(ULL_ALPHA, ULL_BETA, ULL_BUFFER_SIZE);
+UltraLowLatencyFilter engine_rpm_filter_deriv(ULL_ALPHA_DERIV, ULL_BETA_DERIV, ULL_BUFFER_SIZE_DERIV);
 
 // CAN parsing interrupt function
 void odrive_can_parse(const CAN_message_t& msg) {
@@ -50,7 +51,7 @@ uint32_t cycle_count = 0;
 uint32_t last_sample_time_us;
 uint32_t last_eg_count = 0;
 uint32_t last_wl_count = 0;
-float last_error = 0;
+float last_error_deriv = 0;
 volatile uint32_t eg_count = 0;
 volatile uint32_t wl_count = 0;
 float cur_ms_rpm = 0.0;
@@ -82,7 +83,6 @@ void control_function() {
   interrupts();
   uint32_t sample_time_us = micros();
   uint32_t dt_us = sample_time_us - last_sample_time_us;
-  last_sample_time_us = sample_time_us;
   float dt_s = dt_us / 1.e6;
 
   // Calculate instantaneous RPMs
@@ -106,6 +106,7 @@ void control_function() {
 
   // Filter RPMs
   float filt_eg_rpm = engine_rpm_filter.filter(eg_rpm, dt_us);
+  float filt_eg_rpm_deriv = engine_rpm_filter_deriv.filter(eg_rpm, dt_us);
   float filt_sd_rpm = secondary_rpm_filter.update(sd_rpm);
 
   // Calculate reference RPM from wheel speed
@@ -116,12 +117,15 @@ void control_function() {
     target_rpm = WHEEL_REF_PIECEWISE_SLOPE * filt_sd_rpm + WHEEL_REF_LOW_RPM;
   }
 
-  // PI controller math
+  // PD controller math
   float error = target_rpm - filt_eg_rpm;
-  float d_error = (error - last_error) / dt_s;
+  float error_deriv = target_rpm - filt_eg_rpm_deriv;
+  float d_error = (error_deriv - last_error_deriv) / dt_s; // I don't know if the dt_s is going to get messed up by putting last sample time at the end of the control function
+  
+  if (filt_eg_rpm < IDLE_CUTOFF) d_error = 0; // to prevent the derivative from stalling the engine on startup
   float velocity_command =
-      error * PROPORTIONAL_GAIN + d_error * DERIVATIVE_GAIN;
-  last_error = error;
+      PROPORTIONAL_GAIN * (error +  d_error * DERIVATIVE_GAIN);
+  last_error_deriv = error_deriv;
 
   // Brake biasing and actuator command
   int brake_light_signal = analogRead(BRAKE_LIGHT);
@@ -132,7 +136,6 @@ void control_function() {
   float brake_bias = BRAKE_BIAS_VELOCITY ? brake_pressed : 0;
   float clamped_velocity_command =
       actuator.update_speed(velocity_command, brake_bias);
-
   
   // Logging
   int can_error = 0;
@@ -211,14 +214,14 @@ void control_function() {
     log_file.flush();
   }
 
+  // Start counting engine ticks when buffer has been written to
   noInterrupts();
   last_eg_count = eg_count;
-  last_wl_count = wl_count;
   interrupts();
-  last_sample_time_us = micros();
 
+  last_sample_time_us = micros();
+  stop_us = last_sample_time_us;
   cycle_count++;
-  stop_us = micros();
 }
 
 void serial_debugger() {

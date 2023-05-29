@@ -10,14 +10,12 @@ const float DERIVATIVE_GAIN = 0.00125;
 const float WHEEL_REF_LOW_RPM = 2800;
 const float WHEEL_REF_HIGH_RPM = 3100;
 */
+
+//Control Gains & Parameters
 const float PROPORTIONAL_GAIN = 0.05;
-const float DERIVATIVE_GAIN = 0.003;
-const float EG_RPM_WINTER_CUTOFF_FREQ = 1.2;
-const float SD_RPM_WINTER_CUTOFF_FREQ = 0.8;
-const float ULL_ALPHA = 0.5;
-const float ULL_BETA = 0.5;
-const float ULL_BUFFER_SIZE = 2;
-const float VEL_LIMIT = 78;
+const float DERIVATIVE_GAIN = 0.4;
+
+const float IDLE_CUTOFF = 1850;
 const float WHEEL_REF_LOW_RPM = 2100;
 const float WHEEL_REF_HIGH_RPM = 2300;
 const float WHEEL_REF_BREAKPOINT_SECONDARY_RPM = 875;
@@ -25,8 +23,24 @@ const float WHEEL_REF_PIECEWISE_SLOPE =
     ((WHEEL_REF_HIGH_RPM - WHEEL_REF_LOW_RPM) /
      WHEEL_REF_BREAKPOINT_SECONDARY_RPM);
 
+const float VEL_LIMIT = 78;
+
 const int BRAKE_BIAS_CUTOFF = 200;
 const float BRAKE_BIAS_VELOCITY = 50;
+
+// Filters
+const float EG_RPM_WINTER_CUTOFF_FREQ = 1.2;
+const float SD_RPM_WINTER_CUTOFF_FREQ = 0.8;
+
+const float ULL_ALPHA = 0.6;
+const float ULL_BETA = 0.1;
+const float ULL_BUFFER_SIZE = 3;
+
+const float ULL_ALPHA_DERIV = 0.6;
+const float ULL_BETA_DERIV = 0.1;
+const float ULL_BUFFER_SIZE_DERIV = 34;
+
+
 #define model 21
 
 // Per car constants
