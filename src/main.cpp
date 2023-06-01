@@ -127,7 +127,7 @@ void control_function() {
       brake_light_filter.update(brake_light_signal);
   bool brake_pressed = filtered_brake_light_signal > BRAKE_BIAS_CUTOFF;
 
-  float brake_bias = BRAKE_BIAS_VELOCITY ? brake_pressed : 0;
+  float brake_bias = brake_pressed ? BRAKE_BIAS_VELOCITY : 0;
   float clamped_velocity_command =
       actuator.update_speed(velocity_command, brake_bias);
 
@@ -306,6 +306,7 @@ void setup() {
     log_file.printf("%01X", HEADER_MESSAGE_ID);
     log_file.printf("%04X", message_length);
     log_file.write(buffer, message_length);
+    log_file.flush();
 
     free(header_message.timestamp_human.arg);
 
@@ -340,11 +341,15 @@ void setup() {
     case OPERATING_MODE:
       odrive_can.set_input_vel(ACTUATOR_AXIS, 0, 0);
       odrive_can.set_state(ACTUATOR_AXIS, ODRIVE_VELOCITY_CONTROL_STATE);
-      timer.begin(control_function, CONTROL_FUNCTION_INTERVAL_US);
+      //timer.begin(control_function, CONTROL_FUNCTION_INTERVAL_US);
       break;
     case SERIAL_DEBUG_MODE:
-      timer.begin(serial_debugger, SERIAL_DEBUGGER_INTERVAL_US);
+      //timer.begin(serial_debugger, SERIAL_DEBUGGER_INTERVAL_US);
       break;
   }
 }
-void loop() {}
+void loop() {
+  uint32_t loop_start_us = micros();
+  control_function();
+  while (micros() - loop_start_us < CONTROL_FUNCTION_INTERVAL_US) {}
+}
