@@ -36,8 +36,12 @@ IIRFilter secondary_rpm_filter(SECONDARY_RPM_FILTER_B, SECONDARY_RPM_FILTER_A,
 IIRFilter brake_light_filter(BRAKE_LIGHT_FILTER_B, BRAKE_LIGHT_FILTER_A,
                              BRAKE_LIGHT_FILTER_M, BRAKE_LIGHT_FILTER_N);
 
-UltraLowLatencyFilter engine_rpm_filter(ULL_ALPHA, ULL_BETA, ULL_BUFFER_SIZE);
-UltraLowLatencyFilter engine_rpm_filter_deriv(ULL_ALPHA_DERIV, ULL_BETA_DERIV, ULL_BUFFER_SIZE_DERIV);
+
+double eg_rpm_buffer[ULL_BUFFER_SIZE] = {};
+double eg_rpm_buffer_deriv[ULL_BUFFER_SIZE_DERIV] = {};
+
+UltraLowLatencyFilter engine_rpm_filter(ULL_ALPHA, ULL_BETA, ULL_BUFFER_SIZE, eg_rpm_buffer);
+UltraLowLatencyFilter engine_rpm_filter_deriv(ULL_ALPHA_DERIV, ULL_BETA_DERIV, ULL_BUFFER_SIZE_DERIV, eg_rpm_buffer_deriv);
 
 // CAN parsing interrupt function
 void odrive_can_parse(const CAN_message_t& msg) {

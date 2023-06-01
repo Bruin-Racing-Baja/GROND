@@ -24,25 +24,25 @@ class AlphaBetaFilter {
 
 class MovingAverageFilter {
  private:
-  std::vector<double> buffer_;
-  std::size_t buffer_size_;
+  const std::size_t buffer_size_;
+  double* buffer_;
+  std::size_t current_position;
 
  public:
-  MovingAverageFilter(std::size_t buffer_size) : buffer_size_(buffer_size) {}
+  MovingAverageFilter(std::size_t buffer_size, double* buffer) : buffer_size_(buffer_size) {
+    buffer_ = buffer;
+  }
 
   double filter(double measurement) {
-    buffer_.push_back(measurement);
-
-    if (buffer_.size() > buffer_size_) {
-      buffer_.erase(buffer_.begin());
-    }
+    buffer_[current_position] = measurement;
+    current_position = (current_position + 1) % buffer_size_;
 
     double sum = 0.0;
-    for (double value : buffer_) {
-      sum += value;
+    for (unsigned int i = 0; i < buffer_size_ ; i++) {
+      sum += buffer_[i];
     }
 
-    return sum / buffer_.size();
+    return sum / buffer_size_;
   }
 };
 
@@ -52,11 +52,16 @@ class UltraLowLatencyFilter {
   MovingAverageFilter moving_average_filter_;
 
  public:
-  UltraLowLatencyFilter(double alpha, double beta, std::size_t buffer_size)
-      : alpha_beta_filter_(alpha, beta), moving_average_filter_(buffer_size) {}
+  UltraLowLatencyFilter(double alpha, double beta, std::size_t buffer_size, double* buffer)
+      : alpha_beta_filter_(alpha, beta), moving_average_filter_(buffer_size, buffer) {}
 
   double filter(double measurement, double dt) {
     double alpha_beta_output = alpha_beta_filter_.filter(measurement, dt);
     return moving_average_filter_.filter(alpha_beta_output);
   }
 };
+
+
+
+
+

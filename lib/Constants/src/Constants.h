@@ -34,11 +34,11 @@ const float SD_RPM_WINTER_CUTOFF_FREQ = 0.8;
 
 const float ULL_ALPHA = 0.6;
 const float ULL_BETA = 0.1;
-const float ULL_BUFFER_SIZE = 3;
+const int ULL_BUFFER_SIZE = 3;
 
 const float ULL_ALPHA_DERIV = 0.6;
 const float ULL_BETA_DERIV = 0.1;
-const float ULL_BUFFER_SIZE_DERIV = 34;
+const int ULL_BUFFER_SIZE_DERIV = 34;
 
 
 #define model 21
