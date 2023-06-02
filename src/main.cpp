@@ -153,7 +153,8 @@ void control_function() {
         SOFTWARE_LIMIT_P *
         (outbound_encoder_limit - odrive_can.get_shadow_count(ACTUATOR_AXIS));
     software_limit_vel_command = constrain(velocity_command, -3, -1);
-    actuator.update_speed(software_limit_vel_command, 0);
+    clamped_velocity_command =
+        actuator.update_speed(software_limit_vel_command, 0);
   } else if (odrive_can.get_shadow_count(ACTUATOR_AXIS) <=
              inbound_encoder_limit) {
     software_limit_engaged = -1;
@@ -161,7 +162,8 @@ void control_function() {
         SOFTWARE_LIMIT_P *
         (inbound_encoder_limit - odrive_can.get_shadow_count(ACTUATOR_AXIS));
     software_limit_vel_command = constrain(velocity_command, 1, 3);
-    actuator.update_speed(software_limit_vel_command, brake_bias);
+    clamped_velocity_command =
+        actuator.update_speed(software_limit_vel_command, brake_bias);
   } else {
     software_limit_engaged = 0;
     clamped_velocity_command =
