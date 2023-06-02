@@ -56,6 +56,11 @@ volatile uint32_t wl_count = 0;
 float cur_ms_rpm = 0.0;
 int outbound_encoder_limit = INT_MAX;
 int inbound_encoder_limit = INT_MIN;
+int software_limit_engaged =
+    0;  //1 if outbound is engaged, -1 if inbound is engaged
+float software_limit_error = 0;
+float software_limit_vel_command = 0;
+float clamped_velocity_command = 0;
 
 // Real Time Clock functions
 time_t get_teensy3_time() {
@@ -117,7 +122,7 @@ void control_function() {
     target_rpm = WHEEL_REF_PIECEWISE_SLOPE * filt_sd_rpm + WHEEL_REF_LOW_RPM;
   }
 
-  // PI controller math
+  // PD controller math
   float error = target_rpm - filt_eg_rpm;
   float d_error = (error - last_error) / dt_s;
   float velocity_command =
@@ -150,9 +155,26 @@ void control_function() {
         odrive_can.get_shadow_count(ACTUATOR_AXIS) - SOFTWARE_LIMIT_OFFSET;
   }
 
-  float clamped_velocity_command =
-      actuator.update_speed(velocity_command, brake_bias);
-
+  if (odrive_can.get_shadow_count(ACTUATOR_AXIS) >= outbound_encoder_limit) {
+    software_limit_engaged = 1;
+    software_limit_error =
+        SOFTWARE_LIMIT_P *
+        (outbound_encoder_limit - odrive_can.get_shadow_count(ACTUATOR_AXIS));
+    software_limit_vel_command = constrain(velocity_command, -3, -1);
+    actuator.update_speed(software_limit_vel_command, 0);
+  } else if (odrive_can.get_shadow_count(ACTUATOR_AXIS) <=
+             inbound_encoder_limit) {
+    software_limit_engaged = -1;
+    software_limit_error =
+        SOFTWARE_LIMIT_P *
+        (inbound_encoder_limit - odrive_can.get_shadow_count(ACTUATOR_AXIS));
+    software_limit_vel_command = constrain(velocity_command, 1, 3);
+    actuator.update_speed(software_limit_vel_command, brake_bias);
+  } else {
+    software_limit_engaged = 0;
+    clamped_velocity_command =
+        actuator.update_speed(velocity_command, brake_bias);
+  }
   uint32_t stop_us = micros();
 
   // Logging
@@ -219,6 +241,8 @@ void control_function() {
   log_message.brake_pressed = brake_pressed;
   log_message.inbound_encoder_limit = inbound_encoder_limit;
   log_message.outbound_encoder_limit = outbound_encoder_limit;
+  log_message.software_limit_engaged = software_limit_engaged;
+  log_message.software_limit_vel_command = software_limit_vel_command;
 
   // Write log to SD card buffer
   pb_ostream_t ostream = pb_ostream_from_buffer(buffer, sizeof(buffer));
