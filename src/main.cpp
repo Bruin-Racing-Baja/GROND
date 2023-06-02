@@ -137,14 +137,6 @@ void control_function() {
 
   float brake_bias = brake_pressed ? BRAKE_BIAS_VELOCITY : 0;
 
-  // Dont allow actuators to command velocity when past software encoder count limit
-  if ((velocity_command < 0 &&
-       odrive_can.get_shadow_count(ACTUATOR_AXIS) <= inbound_encoder_limit) ||
-      (velocity_command > 0 &&
-       odrive_can.get_shadow_count(ACTUATOR_AXIS) >= outbound_encoder_limit)) {
-    velocity_command = 0;
-  }
-
   // Update estop limits if they are pressed
   if (odrive_can.get_gpio(ESTOP_IN_ODRIVE_PIN)) {
     inbound_encoder_limit =
