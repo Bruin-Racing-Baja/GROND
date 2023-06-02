@@ -60,11 +60,10 @@ float Actuator::update_speed(float target_speed, float brake_offset) {
 float Actuator::set_speed(float set_speed, float brake_offset) {
   set_speed = constrain(set_speed, -VEL_LIMIT, VEL_LIMIT);
   set_speed += brake_offset;
-  int can_error =
-      odrive->set_state(ACTUATOR_AXIS, ODRIVE_VELOCITY_CONTROL_STATE);
+  int can_error = 0;
+  can_error = !!odrive->set_state(ACTUATOR_AXIS, ODRIVE_VELOCITY_CONTROL_STATE);
+  can_error += !!odrive->set_input_vel(ACTUATOR_AXIS, set_speed, 0);
   commanded_axis_state = ODRIVE_VELOCITY_CONTROL_STATE;
-  can_error =
-      (can_error << 1) | odrive->set_input_vel(ACTUATOR_AXIS, set_speed, 0);
   if (can_error != 0) {
     Serial.printf("Error Setting Speed (CAN Error %d)\n", can_error);
   }

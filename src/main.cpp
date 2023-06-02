@@ -138,6 +138,10 @@ void control_function() {
   float brake_bias = brake_pressed ? BRAKE_BIAS_VELOCITY : 0;
 
   // Update estop limits if they are pressed
+  int can_error = 0;
+  can_error += !!odrive_can.request_encoder_count(ACTUATOR_AXIS);
+  can_error += !!odrive_can.request_gpio_states();
+
   if (odrive_can.get_gpio(ESTOP_IN_ODRIVE_PIN)) {
     inbound_encoder_limit =
         odrive_can.get_shadow_count(ACTUATOR_AXIS) + SOFTWARE_LIMIT_OFFSET;
@@ -146,39 +150,36 @@ void control_function() {
     outbound_encoder_limit =
         odrive_can.get_shadow_count(ACTUATOR_AXIS) - SOFTWARE_LIMIT_OFFSET;
   }
+  digitalWrite(LED_PINS[1], odrive_can.get_gpio(ESTOP_OUT_ODRIVE_PIN));
+  digitalWrite(LED_PINS[2], odrive_can.get_gpio(ESTOP_IN_ODRIVE_PIN));
 
   if (odrive_can.get_shadow_count(ACTUATOR_AXIS) >= outbound_encoder_limit) {
     software_limit_engaged = 1;
     software_limit_error =
-        SOFTWARE_LIMIT_P *
         (outbound_encoder_limit - odrive_can.get_shadow_count(ACTUATOR_AXIS));
-    software_limit_vel_command = constrain(velocity_command, -3, -1);
+    software_limit_vel_command = SOFTWARE_LIMIT_P * software_limit_error;
+    software_limit_vel_command = constrain(software_limit_vel_command, -3, -1);
     clamped_velocity_command =
-        actuator.update_speed(software_limit_vel_command, 0);
+        actuator.set_speed(software_limit_vel_command, 0);
   } else if (odrive_can.get_shadow_count(ACTUATOR_AXIS) <=
              inbound_encoder_limit) {
     software_limit_engaged = -1;
     software_limit_error =
-        SOFTWARE_LIMIT_P *
         (inbound_encoder_limit - odrive_can.get_shadow_count(ACTUATOR_AXIS));
-    software_limit_vel_command = constrain(velocity_command, 1, 3);
+    software_limit_vel_command = SOFTWARE_LIMIT_P * software_limit_error;
+    software_limit_vel_command = constrain(software_limit_vel_command, 1, 3);
     clamped_velocity_command =
-        actuator.update_speed(software_limit_vel_command, brake_bias);
+        actuator.set_speed(software_limit_vel_command, brake_bias);
   } else {
     software_limit_engaged = 0;
-    clamped_velocity_command =
-        actuator.update_speed(velocity_command, brake_bias);
+    clamped_velocity_command = actuator.set_speed(velocity_command, brake_bias);
   }
   uint32_t stop_us = micros();
 
   // Logging
-  int can_error = 0;
   can_error += !!odrive_can.request_vbus_voltage();
-  can_error += !!odrive_can.request_encoder_count(ACTUATOR_AXIS);
   can_error += !!odrive_can.request_motor_error(ACTUATOR_AXIS);
-  can_error += !!odrive_can.request_encoder_count(ACTUATOR_AXIS);
   can_error += !!odrive_can.request_iq(ACTUATOR_AXIS);
-  can_error += !!odrive_can.request_gpio_states();
 
   if (kSerialDebugging) {
     Serial.printf(
@@ -285,7 +286,6 @@ void setup() {
   for (int i = 0; i < 4; i++) {
     pinMode(LED_PINS[i], OUTPUT);
   }
-  digitalWrite(LED_PINS[2], HIGH);
 
   if (kWaitSerial) {
     while (!Serial) {}
