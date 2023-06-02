@@ -45,10 +45,10 @@ bool Actuator::encoder_index_search() {
  * @return the current set speed of the actuator
  */
 float Actuator::update_speed(float target_speed, float brake_offset) {
-  if (commanded_axis_state == ODRIVE_VELOCITY_CONTROL_STATE &&
-      target_speed == current_speed) {
-    return target_speed;
-  }
+  // if (commanded_axis_state == ODRIVE_VELOCITY_CONTROL_STATE &&
+  //     target_speed == current_speed) {
+  //   return target_speed;
+  // }
   return Actuator::set_speed(target_speed, brake_offset);
 }
 
