@@ -150,9 +150,11 @@ void control_function() {
     outbound_encoder_limit =
         odrive_can.get_shadow_count(ACTUATOR_AXIS) - SOFTWARE_LIMIT_OFFSET;
   }
+
   digitalWrite(LED_PINS[1], odrive_can.get_gpio(ESTOP_OUT_ODRIVE_PIN));
   digitalWrite(LED_PINS[2], odrive_can.get_gpio(ESTOP_IN_ODRIVE_PIN));
 
+  // Check if we are in a software limit
   if (odrive_can.get_shadow_count(ACTUATOR_AXIS) >= outbound_encoder_limit) {
     software_limit_engaged = 1;
     software_limit_error =
@@ -171,6 +173,16 @@ void control_function() {
     clamped_velocity_command =
         actuator.set_speed(software_limit_vel_command, brake_bias);
   } else {
+    // Check for software limit damping region
+    if (odrive_can.get_shadow_count(ACTUATOR_AXIS) >=
+            (outbound_encoder_limit - SOFTWARE_LIMIT_DAMPING_RANGE) ||
+        odrive_can.get_shadow_count(ACTUATOR_AXIS) <=
+            (inbound_encoder_limit + SOFTWARE_LIMIT_DAMPING_RANGE)) {
+      software_limit_engaged = 2;
+      velocity_command = copysignf(SOFTWARE_DAMPED_VELOCITY, velocity_command);
+    }
+
+    // Normal PD operation
     software_limit_engaged = 0;
     clamped_velocity_command = actuator.set_speed(velocity_command, brake_bias);
   }

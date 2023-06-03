@@ -24,8 +24,12 @@ const float WHEEL_REF_PIECEWISE_SLOPE =
 
 const int BRAKE_BIAS_CUTOFF = 200;
 const float BRAKE_BIAS_VELOCITY = 50;
+
+// Software limit constants
 const int SOFTWARE_LIMIT_OFFSET = 2 * 8192;
 const float SOFTWARE_LIMIT_P = 0.02;
+const float SOFTWARE_LIMIT_DAMPING_RANGE = 2 * 8192;
+const float SOFTWARE_DAMPED_VELOCITY = 5;
 
 #define model 21
 
