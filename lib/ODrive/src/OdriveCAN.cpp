@@ -83,8 +83,8 @@ void OdriveCAN::parse_message(const CAN_message_t& msg) {
       memcpy(&count_in_cpr[axis], msg.buf + 4, 4);
       break;
     case CAN_GET_IQ:
+      memcpy(&gpio_states, msg.buf, 4);
       memcpy(&iq_measured[axis], msg.buf + 4, 4);
-      memcpy(&gpio_states, msg.buf + 4, 4);
       break;
     case CAN_GET_SENSORLESS_ESTIMATES:
       memcpy(&sensorless_vel_estimate[axis], msg.buf + 4, 4);
