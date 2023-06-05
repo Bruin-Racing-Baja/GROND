@@ -114,11 +114,12 @@ void control_function() {
     target_rpm = WHEEL_REF_PIECEWISE_SLOPE * filt_sd_rpm + WHEEL_REF_LOW_RPM;
   }
 
-  // PI controller math
+  // PD controller math
+  float unfiltered_error = target_rpm - eg_rpm;
   float error = target_rpm - filt_eg_rpm;
   float d_error = (error - last_error) / dt_s;
   float velocity_command =
-      error * PROPORTIONAL_GAIN + d_error * DERIVATIVE_GAIN;
+      unfiltered_error * PROPORTIONAL_GAIN + max(d_error * DERIVATIVE_GAIN, 0);
   last_error = error;
 
   // Brake biasing and actuator command
