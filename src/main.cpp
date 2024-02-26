@@ -7,6 +7,7 @@
 #include <HardwareSerial.h>
 #include <IIRFilter.h>
 #include <OdriveCAN.h>
+#include <Oled.h>
 #include <SD.h>
 #include <SPI.h>
 #include <TimeLib.h>
@@ -23,11 +24,19 @@ static constexpr int kWaitSerial = 0;
 static constexpr int kHomeOnStartup = 1;  // Controls index search and home
 static constexpr bool kSerialDebugging = 0;
 
+//oled vars
+const int buttonPin = 2;  // the number of the pushbutton pin
+const int numVars = 5;
+String valueNames[numVars] = {"Engine Count: ", "Wheel Count: ", "Engine RPM: ",
+                              "Wheel RMP: ", "Actuator RPM: "};
+double valueData[numVars] = {100, 1000, 5, 200, 45};
+
 // Object Declarations
 OdriveCAN odrive_can;
 Actuator actuator(&odrive_can);
 IntervalTimer timer;
 File log_file;
+OLED oled(buttonPin);
 IIRFilter engine_rpm_filter(ENGINE_RPM_FILTER_B, ENGINE_RPM_FILTER_A,
                             ENGINE_RPM_FILTER_M, ENGINE_RPM_FILTER_N);
 
@@ -346,5 +355,8 @@ void setup() {
       timer.begin(serial_debugger, SERIAL_DEBUGGER_INTERVAL_US);
       break;
   }
+  oled.init();
 }
-void loop() {}
+void loop() {
+  oled.monitorScreen(valueNames, valueData, numVars);
+}
